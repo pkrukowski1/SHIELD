@@ -8,12 +8,7 @@ from torch import optim
 
 import wandb
 
-from model.cl_module_abc import CLModuleABC
-from model.layer.rbf import RBFLayer
-from method.regularization import regularization
 from method.method_plugin_abc import MethodPluginABC
-from classification_loss_functions import LossCriterion
-from method.dynamic_loss_scaling import DynamicScaling
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
