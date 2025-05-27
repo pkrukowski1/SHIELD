@@ -52,7 +52,7 @@ class IntervalLinear:
             
             new_eps: torch.Tensor
                 'eps' after the linear transformation.
-        """
+        """ 
 
         # Send tensors into devices
         mu     = mu.to(device)
