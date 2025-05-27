@@ -1,3 +1,2 @@
-from .alexnet import IntervalAlexNet
-from .resnet18 import IntervalResNet18
-from .mlp import IntervalMLP
+from .hypernet_with_alexnet import HyperNetWithAlexNet
+from .hypernet_with_mlp import HyperNetWithMLP
