@@ -1,3 +1,8 @@
+"""
+The implementation is based on https://adversarial-attacks-pytorch.readthedocs.io/en/latest/attacks.html#module-torchattacks.attacks.autoattack
+file with minimal modifications to fit the interval hypernetwork framework.
+"""
+
 import torch
 import torch.nn as nn
 

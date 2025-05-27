@@ -1,5 +1,6 @@
 """
-The implementation is based on: https://adversarial-attacks-pytorch.readthedocs.io/en/latest/_modules/torchattacks/attacks/pgd.html#PGD
+The implementation is based on https://adversarial-attacks-pytorch.readthedocs.io/en/latest/_modules/torchattacks/attacks/pgd.html#PGD
+file with minimal modifications to fit the interval hypernetwork framework.
 """
 
 import torch

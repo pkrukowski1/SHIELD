@@ -1,5 +1,6 @@
 """
-The implementation is based on the following implementation: https://adversarial-attacks-pytorch.readthedocs.io/en/latest/_modules/torchattacks/attacks/fgsm.html#FGSM
+The implementation is based on https://adversarial-attacks-pytorch.readthedocs.io/en/latest/_modules/torchattacks/attacks/fgsm.html#FGSM
+file with minimal modifications to fit the interval hypernetwork framework.
 """
 
 import torch
