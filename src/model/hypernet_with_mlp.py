@@ -1,10 +1,12 @@
 from model.target_network.mlp import IntervalMLP
+from model.model_abc import CLModuleABC
+
 from typing import Tuple
 import torch.nn as nn
 from hypnettorch.hnets import HMLP
 
 
-class HyperNetWithMLP:
+class HyperNetWithMLP(CLModuleABC):
     """
     A hypernetwork wrapper that generates parameters for a multi-layer perceptron (MLP)
     target network using a conditional hypernetwork (HMLP).
@@ -62,7 +64,9 @@ class HyperNetWithMLP:
             num_cond_embs=number_of_tasks,
         )
 
-        self.parameters = self.hnet.parameters()
+        self.learnable_params = self.hnet.parameters()
+        
+        super().__init__(learnable_params=self.hnet.parameters())
 
     def forward(self, x, task_id):
         """

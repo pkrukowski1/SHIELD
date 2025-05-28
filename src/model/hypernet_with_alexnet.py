@@ -1,10 +1,12 @@
 from model.target_network.alexnet import IntervalAlexNet
+from model.model_abc import CLModuleABC
+
 from typing import Tuple
 import torch.nn as nn
 from hypnettorch.hnets import HMLP
 
 
-class HyperNetWithAlexNet:
+class HyperNetWithAlexNet(CLModuleABC):
     """
     A hypernetwork wrapper that generates the parameters of an AlexNet-like 
     target network using a conditional hypernetwork (HMLP).
@@ -62,7 +64,9 @@ class HyperNetWithAlexNet:
             num_cond_embs=number_of_tasks,
         )
 
-        self.parameters = self.hnet.parameters()
+        self.learnable_params = self.hnet.parameters()
+        
+        super.__init__(self, learnable_params=self.hnet.parameters())
 
     def forward(self, x, task_id):
         """
