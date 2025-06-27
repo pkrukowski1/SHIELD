@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 
-from typing import Tuple
+from typing import Tuple, Callable
 
 class IntervalLinear:
     """
@@ -52,7 +52,7 @@ class IntervalLinear:
             
             new_eps: torch.Tensor
                 'eps' after the linear transformation.
-        """ 
+        """
 
         # Send tensors into devices
         mu     = mu.to(device)
@@ -76,55 +76,18 @@ class IntervalLinear:
         return new_mu, new_eps
     
 class IntervalReLU:
-    """
-    Interval version of ReLU activation function
-
-    For description of the attributes please see the docs of
-    https://pytorch.org/docs/stable/generated/torch.nn.ReLU.html
-    """
-
-    def __init__(self, inplace: bool = False):
-       
-       self.inplace = inplace
-
-    def forward(self, mu: torch.Tensor, 
-                eps: torch.Tensor,
-                device: str = "cuda") -> Tuple[torch.Tensor, torch.Tensor]:
-        """
-        Applies interval version of a ReLU transformation.
-
-        Parameters:
-        ----------
-            mu: torch.Tensor
-                Midpoint of the interval. 
-
-            eps: torch.Tensor
-                Radii of the interval.
-
-            device: str
-                A string representing the device on which
-                calculations will be performed. Possible
-                values are "cpu" or "cuda".
-
-        Returns:
-        --------
-            new_mu: torch.Tensor
-                'mu' after ReLU transformation.
-            
-            new_eps: torch.Tensor
-                'eps' after ReLU transformation.
-        """
-
-        # Send tensors into devices
-        mu  = mu.to(device)
+    def __init__(self):
+        pass
+    
+    def forward(self, mu: torch.Tensor, eps: torch.Tensor, device: str = "cuda") -> Tuple[torch.Tensor, torch.Tensor]:
+        mu = mu.to(device)
         eps = eps.to(device)
 
-        z_l, z_u = mu - eps, mu + eps
-        z_l, z_u = F.relu(z_l), F.relu(z_u)
+        z_l, z_u = F.relu(mu-eps), F.relu(mu+eps)
+        mu, eps = (z_l+z_u)/2.0, (z_u-z_l)/2.0
 
-        new_mu, new_eps  = (z_u + z_l) / 2, (z_u - z_l) / 2
+        return mu, eps
 
-        return new_mu, new_eps
     
 class IntervalConv2d:
     """
@@ -262,146 +225,74 @@ class IntervalBatchNorm:
     def __init__(self) -> None:
         pass
 
-    def forward(self, mu, eps, weight, bias, running_mean, running_var, stats_id, 
-                batch_norm_forward, device="cuda") -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, mu: torch.Tensor,
+                eps: torch.Tensor,
+                weight: torch.Tensor,
+                bias: torch.Tensor,
+                running_mean: torch.Tensor,
+                running_var: torch.Tensor,
+                stats_id: int,
+                batch_norm_forward: Callable,
+                device: str = "cuda") -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        Applies interval version of a batch normalization layer. The implmentation needs to
-        be compatible with hypernetworks.
+        Applies interval batch normalization using endpoint propagation and shared batch stats.
 
         Parameters:
         ----------
             mu: torch.Tensor
-                Midpoint of the interval. 
-
+                Midpoint of the interval.
             eps: torch.Tensor
-                Radii of the interval.
-
+                Radius of the interval.
             weight: torch.Tensor
-                Learnable weight of the affine transformation.
-
+                Affine scale parameter (gamma).
             bias: torch.Tensor
-                Learnable bias of the affine transformation.
-
+                Affine shift parameter (beta).
             running_mean: torch.Tensor
-                Running means calculated over batches of data.
-
+                Running mean for inference (not used here).
             running_var: torch.Tensor
-                Running variances calculated over batches of data.
-
+                Running variance for inference (not used here).
             stats_id: int
-                Identifier of statistics to be used.
-
+                Identifier for stats tracking in custom BN layers.
             batch_norm_forward: Callable
-                Forward method of 'hypnettorch.utils.batchnorm_layer.BatchNormLayer'.
-            
+                Callable to apply batch norm (should accept training=True).
             device: str
-                A string representing the device on which
-                calculations will be performed. Possible
-                values are "cpu" or "cuda".
+                Device ("cpu" or "cuda").
 
         Returns:
         --------
             new_mu: torch.Tensor
-                'mu' after the BatchNorm transformation.
-            
+                Transformed midpoint.
             new_eps: torch.Tensor
-                'eps' after the BatchNorm transformation.
+                Transformed radius (guaranteed ≥ 0).
         """
         mu = mu.to(device)
         eps = eps.to(device)
         weight = weight.to(device)
         bias = bias.to(device)
 
-        z_lower, z_upper = mu-eps, mu+eps
+        lower = mu - eps
+        upper = mu + eps
 
-        z_lower = batch_norm_forward(
-            z_lower,
+        x_cat = torch.cat([lower, upper], dim=0) 
+        x_cat_bn = batch_norm_forward(
+            x_cat,
             running_mean=running_mean,
             running_var=running_var,
             weight=weight,
             bias=bias,
-            stats_id=stats_id
+            stats_id=stats_id,
         )
 
-        z_upper = batch_norm_forward(
-            z_upper,
-            running_mean=running_mean,
-            running_var=running_var,
-            weight=weight,
-            bias=bias,
-            stats_id=stats_id
-        )
+        lower_bn, upper_bn = x_cat_bn.chunk(2, dim=0)
 
-        # It's just possible that the batchnorm's scale is negative.
-        z_lower, z_upper = torch.minimum(z_lower, z_upper), torch.maximum(z_lower, z_upper)
-        new_mu = (z_lower + z_upper) / 2.0
-        new_eps = (z_upper - z_lower) / 2.0
+        # Scale may be negative
+        lower_bn, upper_bn = torch.minimum(lower_bn, upper_bn), torch.maximum(lower_bn, upper_bn)
+
+        new_mu = (upper_bn + lower_bn) / 2
+        new_eps = (upper_bn - lower_bn) / 2
 
         return new_mu, new_eps
-    
 
-class IntervalMaxPool2d:
-    """
-    Interval version of MaxPool2d. Description of the arguments is here:
-    https://pytorch.org/docs/stable/generated/torch.nn.functional.max_pool2d.html
-    """
-    def __init__(self, kernel_size, stride=None, padding=0, dilation=1) -> None:
-        self.kernel_size = kernel_size
-        self.stride = stride
-        self.padding = padding
-        self.dilation = dilation
-
-    def forward(self, mu, eps, device: str = "cuda") -> Tuple[torch.Tensor,torch.Tensor]:
-        """
-        Applies interval MaxPool.
-
-        Parameters:
-        ----------
-            mu: torch.Tensor
-                Midpoint of the interval. 
-
-            eps: torch.Tensor
-                Radii of the interval.
-
-            device: str
-                A string representing the device on which
-                calculations will be performed. Possible
-                values are "cpu" or "cuda". It is used just for
-                convenience to simplify a forward method of NNs.
-        
-        Returns:
-        --------
-            new_mu: torch.Tensor
-                'mu' after MaxPool2d.
-            
-            new_eps: torch.Tensor
-                'eps' after MaxPool2d.
-
-        """
-
-        mu = mu.to(device)
-        eps = eps.to(device)
-
-        z_lower, z_upper = mu - eps, mu + eps
-        z_lower = F.max_pool2d(
-            z_lower,
-            self.kernel_size,
-            self.stride,
-            self.padding,
-            self.dilation
-        )
-
-        z_upper = F.max_pool2d(
-            z_upper,
-            self.kernel_size,
-            self.stride,
-            self.padding,
-            self.dilation
-        )
-
-        new_mu, new_eps = (z_upper+z_lower)/2.0, (z_upper-z_lower)/2.0
-
-        return new_mu, new_eps
     
 class IntervalAvgPool2d:
     """
@@ -435,9 +326,116 @@ class IntervalAvgPool2d:
         """
         mu = mu.to(device)
         eps = eps.to(device)
-        new_mu = F.avg_pool2d(mu, self.kernel_size, self.stride, self.padding)
-        new_eps = F.avg_pool2d(eps, self.kernel_size, self.stride, self.padding)
+
+        z_lower, z_upper = mu - eps, mu + eps
+        z_lower = F.avg_pool2d(
+            z_lower,
+            self.kernel_size,
+            self.stride,
+            self.padding,
+        )
+
+        z_upper = F.avg_pool2d(
+            z_upper,
+            self.kernel_size,
+            self.stride,
+            self.padding,
+        )
+
+        new_mu, new_eps = (z_upper+z_lower)/2.0, (z_upper-z_lower)/2.0
+
+        return new_mu, new_eps
+    
+class IntervalMaxPool2d:
+    """
+    Interval version of MaxPool2d.
+    See: https://pytorch.org/docs/stable/generated/torch.nn.functional.max_pool2d.html
+    """
+    def __init__(self, kernel_size, stride=None, padding=0):
+        self.kernel_size = kernel_size
+        self.stride = stride
+        self.padding = padding
+
+    def forward(self, mu, eps, device="cuda") -> Tuple[torch.Tensor,torch.Tensor]:
+        """
+        Applies interval max-pooling.
+
+        Parameters:
+        -----------
+            mu: torch.Tensor
+                Midpoint of the interval.
+            eps: torch.Tensor
+                Radius of the interval.
+            device: str
+                Device for computation ("cpu" or "cuda").
+
+        Returns:
+        --------
+            new_mu: torch.Tensor
+                Pooled midpoint.
+            new_eps: torch.Tensor
+                Pooled radius.
+        """
+        mu = mu.to(device)
+        eps = eps.to(device)
+
+        z_lower, z_upper = mu - eps, mu + eps
+        z_lower = F.max_pool2d(
+            z_lower,
+            self.kernel_size,
+            self.stride,
+            self.padding,
+        )
+
+        z_upper = F.max_pool2d(
+            z_upper,
+            self.kernel_size,
+            self.stride,
+            self.padding,
+        )
+
+        new_mu, new_eps = (z_upper+z_lower)/2.0, (z_upper-z_lower)/2.0
+
         return new_mu, new_eps
 
     
+class IntervalDropout:
+    """
+    Interval version of Dropout.
+    See: https://pytorch.org/docs/stable/generated/torch.nn.functional.dropout.html
+    """
+    def __init__(self, p=0.5, inplace=False):
+        self.p = p
+        self.inplace = inplace
 
+    def forward(self, mu, eps, device="cuda") -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Applies interval dropout.
+
+        Parameters:
+        ----------
+            mu: torch.Tensor
+                Midpoint of the interval.
+            eps: torch.Tensor
+                Radius of the interval.
+            device: str
+                Device for computation ("cpu" or "cuda").
+
+        Returns:
+        --------
+            new_mu: torch.Tensor
+                'mu' after dropout.
+            new_eps: torch.Tensor
+                'eps' after dropout.
+        """
+        mu = mu.to(device)
+        eps = eps.to(device)
+        z_lower, z_upper = mu - eps, mu + eps
+
+        mask = (torch.rand_like(mu) > self.p).float()
+        z_lower = z_lower * mask / (1 - self.p)
+        z_upper = z_upper * mask / (1 - self.p)
+
+        new_mu = (z_lower + z_upper) / 2.0
+        new_eps = (z_upper - z_lower) / 2.0
+        return new_mu, new_eps
