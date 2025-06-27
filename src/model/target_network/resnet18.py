@@ -1,4 +1,3 @@
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -12,67 +11,63 @@ from utils.interval_modules import *
 
 class IntervalResNet18(Classifier):
     """
-    IntervalResNet18 implements an interval-based ResNet-18 for robust classification.
+    Implements an interval ResNet18 variant for Split-miniImageNet.
 
-    This class supports interval bound propagation, context modulation, and batch normalization.
-    It is designed to be used with a hypernetwork (no internal learnable weights).
+    Args:
+        in_shape (tuple): Input shape (H, W, C), default (64, 64, 3).
+        num_classes (int): Number of output classes, default 100.
+        use_bias (bool): If True, use biases in conv layers, default False.
+        use_fc_bias (bool): If True, use bias in final linear layer, default True.
+        num_feature_maps (tuple): Filters per module, default (16, 32, 64, 128).
+        blocks_per_group (tuple): Blocks per module, default (4, 4, 4, 4).
+        projection_shortcut (bool): Use 1x1 conv for skip connections, default True.
+        bottleneck_blocks (bool): Use bottleneck blocks, default False.
+        cutout_mod (bool): Apply cutout, default False.
+        no_weights (bool): Weights from hypernetwork, default True.
+        use_batch_norm (bool): Apply batch norm, default True.
+        bn_track_stats (bool): Track BN stats, default True.
+        distill_bn_stats (bool): Allow BN stats distillation, default False.
+        chw_input_format (bool): Expect CHW input, default False.
+        verbose (bool): Print init info, default True.
+        device (str): Device ("cpu" or "cuda"), default "cpu".
+        **kwargs: Context modulation args (e.g., use_context_mod).
 
-    Args
-        in_shape : tuple, optional
-            Input shape (H, W, C). Default: (64, 64, 3).
-        num_classes : int, optional
-            Number of output classes. Default: 100.
-        use_bias : bool, optional
-            Use bias in conv layers. Default: False.
-        use_fc_bias : bool, optional
-            Use bias in final linear layer. Default: True.
-        num_feature_maps : tuple, optional
-            Feature maps per group. Default: (16, 32, 64, 128).
-        blocks_per_group : tuple, optional
-            Residual blocks per group. Default: (4, 4, 4, 4).
-        projection_shortcut : bool, optional
-            Use 1x1 conv for skip connections. Default: True.
-        bottleneck_blocks : bool, optional
-            Use bottleneck blocks. Default: False.
-        cutout_mod : bool, optional
-            Apply cutout augmentation. Default: False.
-        no_weights : bool, optional
-            Expects weights from a hypernetwork. Default: True.
-        use_batch_norm : bool, optional
-            Apply batch normalization. Default: True.
-        bn_track_stats : bool, optional
-            Track running stats in batch norm. Default: True.
-        distill_bn_stats : bool, optional
-            Allow distillation of BN stats. Default: False.
-        chw_input_format : bool, optional
-            Input in CHW format. Default: False.
-        verbose : bool, optional
-            Print initialization info. Default: True.
-        device : str, optional
-            Device to use. Default: "cpu".
-        **kwargs
-            Additional context modulation arguments.
+    Attributes:
+        _filter_sizes (list): Filter counts [16, 16, 32, 64, 128].
+        _num_main_conv_layers (int): Total conv layers (33).
+        _num_non_ident_skips (int): Non-identity skip connections (3).
+        initial_conv (IntervalConv2d): Initial conv layer.
+        initial_pool (IntervalAvgPool2d): First (2x2) avg pool.
+        module_convs (list): Conv layers for modules.
+        skip_convs (list): 1x1 convs for skip connections.
+        interval_bn_layers (list): Interval BN layers.
+        relu (IntervalReLU): ReLU activation.
+        final_pool (IntervalAvgPool2d): Final (2x2) avg pool.
+        flatten (IntervalFlatten): Flattens features.
+        linear (IntervalLinear): Final classification layer.
+        _hyper_shapes_learned (list): Weight shapes for hypernetwork.
+        _param_shapes (list): Parameter shapes.
     """
     def __init__(
         self,
-        in_shape=(64, 64, 3),
-        num_classes=100,
-        use_bias=False,
-        use_fc_bias=True,
-        num_feature_maps=(16, 32, 64, 128),
-        blocks_per_group=(4, 4, 4, 4),
-        projection_shortcut=True,
-        bottleneck_blocks=False,
-        cutout_mod=False,
-        no_weights=True,
-        use_batch_norm=True,
-        bn_track_stats=True,
-        distill_bn_stats=False,
-        chw_input_format=False,
-        verbose=True,
-        device="cpu",
+        in_shape: tuple = (64, 64, 3),
+        num_classes: int = 100,
+        use_bias: bool = False,
+        use_fc_bias: bool = True,
+        num_feature_maps: tuple = (16, 32, 64, 128),
+        blocks_per_group: tuple = (4, 4, 4, 4),
+        projection_shortcut: bool = True,
+        bottleneck_blocks: bool = False,
+        cutout_mod: bool = False,
+        no_weights: bool = True,
+        use_batch_norm: bool = True,
+        bn_track_stats: bool = True,
+        distill_bn_stats: bool = False,
+        chw_input_format: bool = False,
+        verbose: bool = True,
+        device: str = "cpu",
         **kwargs
-    ):
+    ) -> None:
         super(IntervalResNet18, self).__init__(num_classes, verbose)
         assert no_weights, "Learnable parameters are only generated by a hypernetwork"
 
@@ -330,35 +325,55 @@ class IntervalResNet18(Classifier):
         self._is_properly_setup(check_has_bias=False)
 
     def __str__(self):
-        return "IntervalResNet18"
+        return "IntervalResNet18-SplitMiniImageNet-Reduced"
 
     @property
-    def has_bias(self):
+    def has_bias(self) -> bool:
+        """
+        Determines whether the current module uses bias parameters.
+        Returns:
+            bool: True if bias is used in the module, False otherwise.
+        Raises:
+            RuntimeError: If the values of `_use_bias` and `_use_fc_bias` differ, indicating inconsistent bias usage configuration.
+        Notes:
+            - If both `_use_bias` and `_projection_shortcut` are True, a warning is issued because skip connections use 1x1 convolutions without biases, and this method ignores those cases.
+        """
+
         if self._use_bias != self._use_fc_bias:
             raise RuntimeError("has_bias does not apply when use_bias and use_fc_bias differ.")
         if self._use_bias and self._projection_shortcut:
             warn("Skip connections use 1x1 convs without biases. has_bias ignores these.")
         return self._has_bias
 
-    def forward(self, x: torch.Tensor, epsilon: torch.Tensor, weights: list,
-                distilled_params=None, condition=None, device="cpu") -> Tuple[torch.Tensor, torch.Tensor]:
-        """Compute the output :math:`y` of this network given the input
-        :math:`x`.
-
-        Parameters:
-        -----------
-            (....): See docstring of method
-                :meth:`mnets.mnet_interface.MainNetInterface.forward`.
-            x: torch.Tensor
-                Input image (Tensorflow format: last entry denotes channels).
-            epsilon: float
-                Radii of a hypercube around x.
-
-        Returns:
-        ---------
-            tuple: (mu, eps)
-                The output midpoint and radii of the hypercube.
+    def forward(self, x: torch.Tensor, epsilon: float, weights: List[torch.Tensor],
+                distilled_params=None, condition: int=None, device: str="cpu") -> Tuple[torch.Tensor, torch.Tensor]:
         """
+        Perform a forward pass through the interval-based ResNet-18 model.
+        This method computes the interval bounds (mu, eps) for the input tensor `x` under perturbation of size `epsilon`,
+        using the provided network weights and optional context modulation, batch normalization, and distilled parameters.
+        Args:
+            x (torch.Tensor): Input tensor, expected shape depends on model configuration.
+            epsilon (float): Perturbation radius for interval bound propagation.
+            weights (List[torch.Tensor] or dict): List or dict of model weights. If context modulation is used, should
+                include both internal and context-mod weights.
+            distilled_params (Optional[List[torch.Tensor]], optional): Optional parameters for distilled batch norm statistics.
+                Required if `self._distill_bn_stats` is True.
+            condition (Optional[int or dict], optional): Condition for batch norm or context-mod selection. Can be an int or a dict
+                with keys 'bn_stats_id' and/or 'cmod_ckpt_id'.
+            device (str, optional): Device to perform computation on. Defaults to "cpu".
+        Returns:
+            Tuple[torch.Tensor, torch.Tensor]: Tuple of (mu, eps), where `mu` is the center of the output interval and `eps`
+                is the radius (uncertainty) of the output interval.
+        Raises:
+            Exception: If required weights are not provided for the current configuration.
+            ValueError: If distilled_params are provided but distillation is not enabled.
+            NotImplementedError: If context-mod conditions are provided but not supported.
+        Notes:
+            - The method supports context modulation, batch normalization, and projection shortcuts as configured in the model.
+            - Handles both CHW and non-CHW input formats.
+            - Performs interval bound propagation through all layers, including convolutions, batch norms, activations, and linear layers.
+        """
+        
         if (
             (not self._use_context_mod and self._no_weights)
             or (self._no_weights or self._context_mod_no_weights)
@@ -461,8 +476,29 @@ class IntervalResNet18(Classifier):
         layer_ind = 0
         conv_ind = 0
 
-        def conv_layer(mu, eps, stride=1, padding=1, shortcut_mu=None, shortcut_eps=None,
-                       no_conv=False, conv_layer=None):
+        def conv_layer(mu: torch.Tensor, eps: torch.Tensor, stride: int=1, padding: int=1, 
+                       shortcut_mu: torch.Tensor=None, shortcut_eps: torch.Tensor=None,
+                       no_conv=False, conv_layer=None) -> Tuple[torch.Tensor,torch.Tensor]:
+            """
+            Applies a convolutional layer with optional context modulation, batch normalization, shortcut addition, and ReLU activation to interval bounds.
+            Args:
+                mu (torch.Tensor): The mean tensor representing the center of the interval.
+                eps (torch.Tensor): The epsilon tensor representing the radius of the interval.
+                stride (int, optional): Stride for the convolution operation. Default is 1.
+                padding (int, optional): Padding for the convolution operation. Default is 1.
+                shortcut_mu (torch.Tensor, optional): Mean tensor from the shortcut connection, if any. Default is None.
+                shortcut_eps (torch.Tensor, optional): Epsilon tensor from the shortcut connection, if any. Default is None.
+                no_conv (bool, optional): If True, skips the convolution operation. Default is False.
+                conv_layer (optional): The convolutional layer to use. Default is None.
+            Returns:
+                Tuple[torch.Tensor, torch.Tensor]: The updated (mu, eps) tensors after applying convolution, context modulation, batch normalization, shortcut addition, and ReLU activation as configured.
+            Notes:
+                - The function uses nonlocal variables to keep track of layer indices.
+                - Context modulation and batch normalization are applied conditionally based on the configuration.
+                - Shortcut connections are supported for residual architectures.
+                - The function assumes certain attributes and layers exist on the parent class (e.g., self._use_context_mod, self.interval_bn_layers, etc.).
+            """
+            
             nonlocal layer_ind, cm_ind, bn_ind, conv_ind
             if not no_conv:
                 mu, eps = conv_layer.forward(
@@ -593,7 +629,16 @@ class IntervalResNet18(Classifier):
 
         return mu, eps
 
-    def distillation_targets(self):
+    def distillation_targets(self) -> List:
+        """
+        Returns a list of statistics from all batch normalization layers for use as distillation targets.
+        If `self.hyper_shapes_distilled` is None, returns None. Otherwise, iterates through all batch normalization
+        layers stored in `self._batchnorm_layers`, collects their statistics using the `get_stats()` method, and
+        returns them as a single flattened list.
+        Returns:
+            List: A list containing the statistics from each batch normalization layer, or None if distillation is not enabled.
+        """
+        
         if self.hyper_shapes_distilled is None:
             return None
         ret = []
@@ -601,7 +646,17 @@ class IntervalResNet18(Classifier):
             ret.extend(bn_layer.get_stats())
         return ret
 
-    def _compute_layer_out_sizes(self):
+    def _compute_layer_out_sizes(self) -> List:
+        """
+        Computes and returns the output sizes (channel, height, width) of each layer in the network.
+        The method calculates the spatial dimensions and channel sizes after each convolutional and pooling operation,
+        based on the initial input shape, filter sizes, and the number of blocks per layer. It simulates the forward
+        pass through the network architecture, updating the dimensions according to kernel size, stride, and padding.
+        Returns:
+            list: A list of lists, where each inner list contains the output shape [C, H, W] for each layer,
+                  and the final entry contains the number of output classes as a single-element list.
+        """
+
         in_shape = [self._in_shape[2], *self._in_shape[:2]]
         fs = self._filter_sizes
         ret = []
@@ -614,7 +669,20 @@ class IntervalResNet18(Classifier):
         W = W // 2
         ret.append([C, H, W])
 
-        def add_block(H, W, C, stride):
+        def add_block(H: int, W: int, C: int, stride: int) -> Tuple[int,int,int]:
+            """
+            Adds two convolutional blocks to the network, updating the spatial dimensions and channel count.
+            Parameters:
+                H (int): The current height of the feature map.
+                W (int): The current width of the feature map.
+                C (int): The number of channels in the feature map.
+                stride (int): The stride to be used for the first convolutional block.
+            Returns:
+                tuple: Updated (H, W, C) after applying two convolutional blocks.
+            Side Effects:
+                Appends the updated [C, H, W] for each block to the global 'ret' list.
+            """
+
             H = (H - 3 + 2 * 1) // stride + 1
             W = (W - 3 + 2 * 1) // stride + 1
             ret.append([C, H, W])
@@ -634,5 +702,16 @@ class IntervalResNet18(Classifier):
         ret.append([self._num_classes])
         return ret
 
-    def get_output_weight_mask(self, out_inds=None, device=None):
+    def get_output_weight_mask(self, out_inds: Iterable[int]=None, device: str=None) -> torch.Tensor:
+        """
+        Returns a mask for the output weights of the network.
+        This method generates a mask for the output weights, which can be used to select or modify specific output neurons.
+        It delegates the actual mask generation to the superclass implementation.
+        Args:
+            out_inds (Optional[Iterable[int]]): Indices of the output neurons to include in the mask. If None, all outputs are included.
+            device (Optional[torch.device or str]): The device on which to create the mask tensor. If None, uses the default device.
+        Returns:
+            torch.Tensor: A mask tensor for the output weights, with the same shape as the output layer's weights.
+        """
+
         return super().get_output_weight_mask(out_inds=out_inds, device=device)
