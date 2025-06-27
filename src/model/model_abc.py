@@ -34,12 +34,13 @@ class CLModuleABC(nn.Module, metaclass=ABCMeta):
         self.learnable_params = learnable_params
 
     @abstractmethod
-    def forward(self, x, task_id, *args, **kwargs):
+    def forward(self, x, epsilon, task_id, *args, **kwargs):
         """
         Forward pass of the module.
         
         Args:
             x (torch.Tensor): Input tensor of shape (B, in_shape).
+            epsilon (float): Perturbation value.
             task_id (int): Task identifier.
             *args: Variable length argument list.
             **kwargs: Arbitrary keyword arguments.

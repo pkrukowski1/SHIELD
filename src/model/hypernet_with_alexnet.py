@@ -18,8 +18,6 @@ class HyperNetWithAlexNet(CLModuleABC):
     Attributes:
         target_network (IntervalAlexNet): The target network that receives weights 
             from the hypernetwork.
-        epsilon (float): Perturbation magnitude used in robust training (e.g., 
-            for interval bound propagation).
         hnet (HMLP): Hypernetwork that generates the weights of the target network 
             conditioned on the task.
         parameters (iterable): The parameters of the hypernetwork.
@@ -28,7 +26,6 @@ class HyperNetWithAlexNet(CLModuleABC):
     def __init__(self, 
                  in_shape: Tuple[int, int, int],
                  no_classes_per_task: int,
-                 epsilon: float,
                  activation_function: nn.Module,
                  hnet_hidden_layers: Tuple[int, ...],
                  number_of_tasks: int,
@@ -39,7 +36,6 @@ class HyperNetWithAlexNet(CLModuleABC):
         Args:
             in_shape (Tuple[int, int, int]): Shape of the input images (C, H, W).
             no_classes_per_task (int): Number of output classes per task.
-            epsilon (float): Perturbation magnitude for robust training.
             activation_function (nn.Module): Activation function used in the hypernetwork.
             hnet_hidden_layers (Tuple[int, ...]): Sizes of the hidden layers in the hypernetwork.
             number_of_tasks (int): Total number of tasks for continual learning.
@@ -53,7 +49,6 @@ class HyperNetWithAlexNet(CLModuleABC):
             bn_track_stats=False,
             distill_bn_stats=False
         )
-        self.epsilon = epsilon
 
         self.hnet = HMLP(
             self.target_network.param_shapes,
@@ -68,13 +63,14 @@ class HyperNetWithAlexNet(CLModuleABC):
         
         super.__init__(self, learnable_params=self.hnet.parameters())
 
-    def forward(self, x, task_id):
+    def forward(self, x, epsilon, task_id):
         """
         Perform a forward pass through the target network using weights generated 
         by the hypernetwork conditioned on the given task ID.
 
         Args:
             x (torch.Tensor): Input image batch of shape (B, C, H, W).
+            epsilon (float): Perturbation value.
             task_id (int): ID of the current task, used to condition the hypernetwork.
 
         Returns:
@@ -84,6 +80,6 @@ class HyperNetWithAlexNet(CLModuleABC):
         """
         hnet_weights = self.hnet.forward(cond_id=task_id)
         outputs, eps = self.target_network(
-            x, epsilon=self.epsilon, weights=hnet_weights, condition=task_id
+            x, epsilon=epsilon, weights=hnet_weights, condition=task_id
         )
         return outputs, eps

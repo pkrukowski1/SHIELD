@@ -75,13 +75,14 @@ class HyperNetWithResNet18(CLModuleABC):
         
         super.__init__(self, learnable_params=self.hnet.parameters())
 
-    def forward(self, x, task_id):
+    def forward(self, x, epsilon, task_id):
         """
         Perform a forward pass through the target network using weights generated 
         by the hypernetwork conditioned on the given task ID.
 
         Args:
             x (torch.Tensor): Input image batch of shape (B, C, H, W).
+            epsilion (float): Perturbation value.
             task_id (int): ID of the current task, used to condition the hypernetwork.
 
         Returns:
@@ -91,6 +92,6 @@ class HyperNetWithResNet18(CLModuleABC):
         """
         hnet_weights = self.hnet.forward(cond_id=task_id)
         outputs, eps = self.target_network(
-            x, epsilon=self.epsilon, weights=hnet_weights, condition=task_id
+            x, epsilon=epsilon, weights=hnet_weights, condition=task_id
         )
         return outputs, eps

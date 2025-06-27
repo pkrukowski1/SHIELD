@@ -1,19 +1,66 @@
+"""The implementation is based on https://hypnettorch.readthedocs.io/en/latest/_modules/hypnettorch/mnets/mlp.html#MLP"""
+
 import torch
 import torch.nn as nn
+
 from hypnettorch.mnets.mnet_interface import MainNetInterface
 from hypnettorch.utils.torch_utils import init_params
 
+from typing import Tuple, List, Callable
+
 class IntervalMLP(nn.Module, MainNetInterface):
+    """
+    IntervalMLP is a multi-layer perceptron (MLP) designed for interval bound propagation, supporting non-learnable weights for use with hypernetworks.
+    This class implements a feedforward neural network with configurable input/output sizes, hidden layers, activation functions, and bias usage. 
+    It is intended for use in scenarios where weights are provided externally (e.g., by a hypernetwork), and thus does not create learnable parameters by default.
+    Inheritance:
+        nn.Module: PyTorch base class for all neural network modules.
+        MainNetInterface: Custom interface for main network behavior.
+    Args:
+        n_in (int): Number of input features. Default is 1.
+        n_out (int): Number of output features. Default is 1.
+        hidden_layers (tuple): Sizes of hidden layers. Default is (10, 10).
+        activation_fn (callable): Activation function to use between layers. Default is torch.nn.ReLU().
+        use_bias (bool): Whether to include bias terms in linear layers. Default is True.
+        no_weights (bool): If True, the network does not create learnable parameters (weights must be provided externally). Default is True.
+        out_fn (callable, optional): Optional output transformation function. Default is None.
+    Attributes:
+        _a_fun (callable): Activation function.
+        _no_weights (bool): Indicates if weights are not learnable.
+        _out_fn (callable): Output transformation function.
+        _has_bias (bool): Indicates if bias is used.
+        _has_fc_out (bool): Indicates if the network has a fully connected output layer.
+        _mask_fc_out (bool): Indicates if the output layer is masked.
+        _has_linear_out (bool): Indicates if the output layer is linear.
+        _param_shapes (list): List of parameter shapes for each layer.
+        _param_shapes_meta (list): Metadata for each parameter shape.
+        _weights (nn.ParameterList): List of network parameters (weights and biases).
+        _layer_weight_tensors (nn.ParameterList): List of weight tensors for each layer.
+        _layer_bias_vectors (nn.ParameterList): List of bias vectors for each layer.
+    Methods:
+        forward(x, epsilon, weights=None, distilled_params=None, condition=None):
+            Performs a forward pass with interval bound propagation, returning the output and propagated epsilon.
+        distillation_targets():
+            Returns distillation targets (None for this implementation).
+        weight_shapes(n_in=1, n_out=1, hidden_layers=[10, 10], use_bias=True):
+            Static method to compute the shapes of weights and biases for each layer.
+    Notes:
+        - The network is designed to work with externally provided weights (e.g., from a hypernetwork).
+        - The forward method propagates both the input and an interval epsilon through the network, supporting interval bound propagation for robustness analysis.
+        - Biases are handled according to the use_bias flag.
+        - The network asserts that no_weights is True, enforcing the use of external weights.
+    """
+    
     def __init__(
         self,
-        n_in=1,
-        n_out=1,
-        hidden_layers=(10, 10),
-        activation_fn=torch.nn.ReLU(),
-        use_bias=True,
-        no_weights=True,
-        out_fn=None,
-    ):
+        n_in: int=1,
+        n_out: int=1,
+        hidden_layers: Tuple=(10, 10),
+        activation_fn: nn.Module=torch.nn.ReLU(),
+        use_bias: bool=True,
+        no_weights: bool=True,
+        out_fn: Callable=None,
+    ) -> None:
         # FIXME find a way using super to handle multiple inheritance.
         nn.Module.__init__(self)
         MainNetInterface.__init__(self)
@@ -84,7 +131,23 @@ class IntervalMLP(nn.Module, MainNetInterface):
 
         self._is_properly_setup()
 
-    def forward(self, x, epsilon, weights=None, distilled_params=None, condition=None):
+    def forward(self, x: torch.Tensor, epsilon: float, weights: List[torch.Tensor]=None, 
+                distilled_params=None, condition: int=None) -> Tuple[torch.Tensor,torch.Tensor]:
+        """
+        Perform a forward pass with interval bound propagation.
+
+        Args:
+            x (torch.Tensor): Input tensor.
+            epsilon (float): Radii of a hypercube around x.
+            weights (list of torch.Tensor, optional): List of weight and bias tensors. If None, uses self.weights.
+            distilled_params: Unused. For interface compatibility.
+            condition: Unused. For interface compatibility.
+
+        Returns:
+            tuple: (mu, eps)
+            mu (torch.Tensor): Output midpoint after propagation.
+            eps (torch.Tensor): Output radii after propagation.
+        """
         if weights is None:
            weights = self.weights
 
@@ -119,7 +182,20 @@ class IntervalMLP(nn.Module, MainNetInterface):
         return None
 
     @staticmethod
-    def weight_shapes(n_in=1, n_out=1, hidden_layers=[10, 10], use_bias=True):
+    def weight_shapes(n_in: int=1, n_out: int=1, hidden_layers: Tuple[int]=[10, 10], use_bias: bool=True):
+        """
+        Compute the shapes of weights and biases for each layer of the MLP.
+
+        Args:
+            n_in (int, optional): Number of input features. Defaults to 1.
+            n_out (int, optional): Number of output features. Defaults to 1.
+            hidden_layers (list or tuple of int, optional): Sizes of hidden layers. Defaults to [10, 10].
+            use_bias (bool, optional): Whether to include bias shapes for each layer. Defaults to True.
+
+        Returns:
+            list: List of shapes for weights and (optionally) biases for each layer, in order.
+              Each weight shape is [out_features, in_features], and each bias shape is [out_features].
+        """
         shapes = []
         prev_dim = n_in
         layer_out_sizes = hidden_layers + [n_out]
