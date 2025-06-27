@@ -1,10 +1,13 @@
 from abc import ABCMeta, abstractmethod
-
 from model.model_abc import CLModuleABC
+
+import torch
+
+import numpy as np
 
 class MethodABC(metaclass=ABCMeta):
     """
-    Base class for continual learning methods as plugins for composer.
+    Base class for continual learning methods.
 
     Methods:
         setup_task(task_id: int):
@@ -15,21 +18,28 @@ class MethodABC(metaclass=ABCMeta):
             Set the module for the plugin.
     """
 
-    def set_module(self, module: CLModuleABC):
+    def __init__(self, 
+                 module: CLModuleABC, 
+                 lr: float, 
+                 use_lr_scheduler: bool = False):
         """
-        Set the module for the plugin.
-        
         Args:
             module(CLModuleABC): The model to be set.
+            lr (float): Learning rate for the optimizer.
         """
 
         self.module = module
+        self.lr = lr
+        self.use_lr_scheduler = use_lr_scheduler
+
+        self.setup_optim()
 
 
     @abstractmethod
     def setup_task(self, task_id: int):
         """
-        Internal setup task.
+        Internal setup task. It is useful when some CL methods store
+        additional piece of information per task.
         
         Args:
             task_id (int): The unique identifier of the task to be set up.
@@ -39,9 +49,75 @@ class MethodABC(metaclass=ABCMeta):
 
 
     @abstractmethod
-    def forward(self, x, y, loss, preds):
+    def forward(self, x, y, task_id):
         """
-        Internal forward pass.
+        Performs a forward pass of the model.
+
+        Args:
+            x: Input data.
+            y: Target data or labels.
+            task_id: Identifier for the current task.
+
+        Returns:
+            The output of the forward computation.
+
+        Raises:
+            NotImplementedError: This method must be implemented by subclasses.
+        """
+        pass
+
+    def setup_optim(self):
+        """
+        Sets up the optimizer and the scheduler (if applicable) for the model.
+        This method initializes the optimizer with the model parameters that require
+        gradients.
         """
 
-        pass
+        params = list(*self.module.learnable_params)
+
+        # Double check if the parameters require gradients
+        params = filter(lambda p: p.requires_grad, params)
+        self.optimizer = torch.optim.Adam(params, lr=self.lr)
+        
+        if self.use_lr_scheduler:
+            self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                self.optimizer,
+                "max",
+                factor=np.sqrt(0.1),
+                patience=5,
+                min_lr=0.5e-6,
+                cooldown=0,
+                verbose=True,
+            )
+
+
+    def backward(self, loss):  
+        """
+        Performs a backward pass and updates the model parameters.
+
+        Args:
+            loss (torch.Tensor): The loss tensor from which to compute gradients.
+            
+        This method performs the following steps:
+        1. Resets the gradients of the optimizer.
+        2. Computes the gradients of the loss with respect to the model parameters.
+        3. Updates the model parameters using the optimizer.
+        """
+
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+
+    def make_scheduler_step(self, metrics):
+        """
+        Makes a step for the learning rate scheduler.
+
+        Args:
+            metrics (dict): A dictionary containing metrics to be used by the scheduler.
+            
+        This method calls the step function of the learning rate scheduler with the
+        specified metrics.
+        """
+        
+        if self.use_lr_scheduler:
+            self.scheduler.step(metrics["val_acc"])
