@@ -4,7 +4,6 @@ import hypnettorch.utils.hnet_regularizer as hreg
 
 from method.method_abc import MethodABC
 from method.utils import mixup_data
-from method.loss_functions import mixup_criterion, calculate_worst_case_loss
 
 from typing import Tuple
 from copy import deepcopy
@@ -143,10 +142,10 @@ class SHIELD(MethodABC):
         z_upper = prediction + eps_prediction
         z = torch.where((nn.functional.one_hot(y_a, prediction.size(-1))).bool(), z_lower, z_upper)
 
-        loss_spec = mixup_criterion(self.criterion, z, y_a, y_b, lam)
-        loss_fit  = mixup_criterion(self.criterion, prediction, y_a, y_b, lam)
+        loss_spec = self.mixup_criterion(self.criterion, z, y_a, y_b, lam)
+        loss_fit  = self.mixup_criterion(self.criterion, prediction, y_a, y_b, lam)
 
-        z = calculate_worst_case_loss(
+        z = self.calculate_worst_case_loss(
             z_lower=z_lower,
             z_upper=z_upper,
             prediction=prediction,
@@ -171,3 +170,25 @@ class SHIELD(MethodABC):
         loss = loss_current_task + self.beta * loss_regularization / max(1, task_id)
         
         return loss
+    
+    def mixup_criterion(self, criterion: nn.Module, pred: torch.Tensor, 
+                    y_a: torch.Tensor, y_b: torch.Tensor, lam: float) -> torch.Tensor:
+        """Computes the mixup loss."""
+        return lam * criterion(pred, y_a) + (1 - lam) * criterion(pred, y_b)
+
+    def calculate_worst_case_loss(self, z_lower: torch.Tensor, z_upper: torch.Tensor, 
+                                prediction: torch.Tensor, gt_output: torch.Tensor) -> torch.Tensor:
+            """
+            Calculates the worst-case loss by selecting between lower and upper bounds for each class,
+            based on the ground truth output.
+                z_lower (torch.Tensor): The lower bound tensor for each class.
+                z_upper (torch.Tensor): The upper bound tensor for each class.
+                prediction (torch.Tensor): The model's predicted logits.
+                gt_output (torch.Tensor): The ground truth class indices.
+                torch.Tensor: A tensor where, for each sample, the value from z_lower is selected for the
+                                ground truth class and z_upper for all other classes, representing the
+                                worst-case scenario for loss computation.
+            """
+        
+            z = torch.where((nn.functional.one_hot(gt_output, prediction.size(-1))).bool(), z_lower, z_upper)
+            return z
