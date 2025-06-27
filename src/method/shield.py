@@ -1,12 +1,5 @@
-import numpy as np
-import pandas as pd
-from copy import deepcopy
-import time
-
 import torch
-import torch.optim as optim
 from torch import nn
-
 import hypnettorch.utils.hnet_regularizer as hreg
 
 from method.method_abc import MethodABC
@@ -14,6 +7,7 @@ from method.utils import mixup_data
 from method.loss_functions import mixup_criterion, calculate_worst_case_loss
 
 from typing import Tuple
+from copy import deepcopy
 
 class SHIELD(MethodABC):
     """
@@ -102,7 +96,7 @@ class SHIELD(MethodABC):
             self.hnet.conditional_params[task_id-1].requires_grad_(False)
 
             self.regularization_targets = hreg.get_current_targets(
-                task_id, self.module.hnet
+                task_id, deepcopy(self.module.hnet)
             )
 
         self.current_epsilon = 0.0
@@ -134,17 +128,15 @@ class SHIELD(MethodABC):
             self.schedule_epsilon()
             self.schedule_kappa()
 
-        hnet_weights = self.hnet.forward(cond_id=task_id)
-
         # Apply mixup augmentation
         mixup_tensor_input, y_a, y_b, lam = mixup_data(x, y, alpha=self.mixup_alpha)
         eps_transformed = abs(2*lam-1.0) * self.current_epsilon
 
         # Calculate predictions
-        prediction, eps_prediction = self.module.target_network.forward(
-            mixup_tensor_input,
+        prediction, eps_prediction = self.module.forward(
+            x=mixup_tensor_input,
             epsilon=eps_transformed, 
-            weights=hnet_weights
+            task_id=task_id
         )
 
         z_lower = prediction - eps_prediction
@@ -152,7 +144,7 @@ class SHIELD(MethodABC):
         z = torch.where((nn.functional.one_hot(y_a, prediction.size(-1))).bool(), z_lower, z_upper)
 
         loss_spec = mixup_criterion(self.criterion, z, y_a, y_b, lam)
-        loss_fit = mixup_criterion(self.criterion, prediction, y_a, y_b, lam)
+        loss_fit  = mixup_criterion(self.criterion, prediction, y_a, y_b, lam)
 
         z = calculate_worst_case_loss(
             z_lower=z_lower,
