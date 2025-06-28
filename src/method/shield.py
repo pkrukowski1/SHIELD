@@ -101,7 +101,7 @@ class SHIELD(MethodABC):
         self.current_epsilon = 0.0
         self.current_kappa = 1.0
     
-    def forward(self, x: torch.Tensor, y: torch.Tensor, task_id: int) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, x: torch.Tensor, y: torch.Tensor, task_id: int) -> Tuple[torch.Tensor,torch.Tensor]:
         """
         Forward pass for the SHIELD method with mixup data augmentation and regularization.
         Args:
@@ -109,7 +109,7 @@ class SHIELD(MethodABC):
             y (torch.Tensor): Ground truth labels tensor of shape (batch_size,).
             task_id (int): Identifier for the current task, used for conditional hypernetwork weights and regularization.
         Returns:
-            Tuple[torch.Tensor, torch.Tensor]: The computed loss for the current batch.
+            Tuple[torch.Tensor,torch.Tensor]: The computed loss for the current batch and worst-case predictions of the model.
         Workflow:
             - Schedules epsilon and kappa if in training mode.
             - Obtains task-specific weights from the hypernetwork.
@@ -140,17 +140,16 @@ class SHIELD(MethodABC):
 
         z_lower = prediction - eps_prediction
         z_upper = prediction + eps_prediction
-        z = torch.where((nn.functional.one_hot(y_a, prediction.size(-1))).bool(), z_lower, z_upper)
-
-        loss_spec = self.mixup_criterion(self.criterion, z, y_a, y_b, lam)
-        loss_fit  = self.mixup_criterion(self.criterion, prediction, y_a, y_b, lam)
-
         z = self.calculate_worst_case_loss(
             z_lower=z_lower,
             z_upper=z_upper,
             prediction=prediction,
             gt_output=y
         )
+
+
+        loss_spec = self.mixup_criterion(self.criterion, z, y_a, y_b, lam)
+        loss_fit  = self.mixup_criterion(self.criterion, prediction, y_a, y_b, lam)
 
         loss_current_task = self.current_kappa * loss_fit + (1 -self.current_kappa) * loss_spec
 
@@ -169,7 +168,7 @@ class SHIELD(MethodABC):
 
         loss = loss_current_task + self.beta * loss_regularization / max(1, task_id)
         
-        return loss
+        return loss, z
     
     def mixup_criterion(self, criterion: nn.Module, pred: torch.Tensor, 
                     y_a: torch.Tensor, y_b: torch.Tensor, lam: float) -> torch.Tensor:
@@ -178,17 +177,17 @@ class SHIELD(MethodABC):
 
     def calculate_worst_case_loss(self, z_lower: torch.Tensor, z_upper: torch.Tensor, 
                                 prediction: torch.Tensor, gt_output: torch.Tensor) -> torch.Tensor:
-            """
-            Calculates the worst-case loss by selecting between lower and upper bounds for each class,
-            based on the ground truth output.
-                z_lower (torch.Tensor): The lower bound tensor for each class.
-                z_upper (torch.Tensor): The upper bound tensor for each class.
-                prediction (torch.Tensor): The model's predicted logits.
-                gt_output (torch.Tensor): The ground truth class indices.
-                torch.Tensor: A tensor where, for each sample, the value from z_lower is selected for the
-                                ground truth class and z_upper for all other classes, representing the
-                                worst-case scenario for loss computation.
-            """
-        
-            z = torch.where((nn.functional.one_hot(gt_output, prediction.size(-1))).bool(), z_lower, z_upper)
-            return z
+        """
+        Calculates the worst-case loss by selecting between lower and upper bounds for each class,
+        based on the ground truth output.
+            z_lower (torch.Tensor): The lower bound tensor for each class.
+            z_upper (torch.Tensor): The upper bound tensor for each class.
+            prediction (torch.Tensor): The model's predicted logits.
+            gt_output (torch.Tensor): The ground truth class indices.
+            torch.Tensor: A tensor where, for each sample, the value from z_lower is selected for the
+                            ground truth class and z_upper for all other classes, representing the
+                            worst-case scenario for loss computation.
+        """
+
+        z = torch.where((nn.functional.one_hot(gt_output, prediction.size(-1))).bool(), z_lower, z_upper)
+        return z

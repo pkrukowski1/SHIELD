@@ -58,7 +58,7 @@ class HNET(MethodABC):
             y (torch.Tensor): Target tensor for the current task.
             task_id (int): Identifier for the current task.
         Returns:
-            Tuple[torch.Tensor, torch.Tensor]: The total loss tensor, including task loss and regularization loss.
+            Tuple[torch.Tensor, torch.Tensor]: The total loss tensor and predictions of the model.
         """
 
 
@@ -86,4 +86,4 @@ class HNET(MethodABC):
 
         loss = loss_current_task + self.beta * loss_regularization / max(1, task_id)
         
-        return loss
+        return loss, prediction

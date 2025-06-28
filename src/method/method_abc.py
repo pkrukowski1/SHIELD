@@ -4,6 +4,7 @@ from model.model_abc import CLModuleABC
 import torch
 
 import numpy as np
+from typing import Tuple
 
 class MethodABC(metaclass=ABCMeta):
     """
@@ -21,7 +22,7 @@ class MethodABC(metaclass=ABCMeta):
     def __init__(self, 
                  module: CLModuleABC, 
                  lr: float, 
-                 use_lr_scheduler: bool = False):
+                 use_lr_scheduler: bool = False) -> None:
         """
         Args:
             module(CLModuleABC): The model to be set.
@@ -36,7 +37,7 @@ class MethodABC(metaclass=ABCMeta):
 
 
     @abstractmethod
-    def setup_task(self, task_id: int):
+    def setup_task(self, task_id: int) -> None:
         """
         Internal setup task. It is useful when some CL methods store
         additional piece of information per task.
@@ -49,24 +50,27 @@ class MethodABC(metaclass=ABCMeta):
 
 
     @abstractmethod
-    def forward(self, x, y, task_id):
+    def forward(self, x: torch.Tensor, y: torch.Tensor, task_id: int) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        Performs a forward pass of the model.
+        Performs a forward pass of the model. It should return loss function values
+        and predictions of the model.
 
         Args:
-            x: Input data.
-            y: Target data or labels.
-            task_id: Identifier for the current task.
+            x (torch.Tensor): Input data.
+            y (torch.Tensor): Target data or labels.
+            task_id (int): Identifier for the current task.
 
         Returns:
-            The output of the forward computation.
+            The output of the forward computation:
+            - Loss function value.
+            - Predictions of the model.
 
         Raises:
             NotImplementedError: This method must be implemented by subclasses.
         """
         pass
 
-    def setup_optim(self):
+    def setup_optim(self) -> None:
         """
         Sets up the optimizer and the scheduler (if applicable) for the model.
         This method initializes the optimizer with the model parameters that require
@@ -91,7 +95,7 @@ class MethodABC(metaclass=ABCMeta):
             )
 
 
-    def backward(self, loss):  
+    def backward(self, loss: torch.Tensor) -> None:  
         """
         Performs a backward pass and updates the model parameters.
 
@@ -108,7 +112,7 @@ class MethodABC(metaclass=ABCMeta):
         loss.backward()
         self.optimizer.step()
 
-    def make_scheduler_step(self, metrics):
+    def make_scheduler_step(self, metrics: dict) -> None:
         """
         Makes a step for the learning rate scheduler.
 
