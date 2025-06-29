@@ -41,7 +41,7 @@ class SHIELD(MethodABC):
     def __init__(self, 
                  beta: float,
                  mixup_alpha: float,
-                 no_iterations: int
+                 no_iterations: int,
                  ):
         super().__init__()
 

@@ -1,0 +1,9 @@
+_target_: model.HyperNetWithMLP
+in_shape: 784,
+no_classes_per_task: 2,
+activation_function:
+  __target__: torch.nn.ReLU
+hnet_hidden_layers: [100,100]
+target_hidden_layers: [256, 256]
+number_of_tasks: 5
+hnet_embedding_size: 24

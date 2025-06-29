@@ -1,0 +1,22 @@
+defaults:
+  - _self_
+  - dataset: split_mnist
+  - model: mlp
+  - method: shield
+
+exp:
+  _target_: experiment.interval_training
+  seed: 42
+  log_dir: # set during runtime to automatically created dir
+  batch_size: 32
+  epochs: 1
+
+fabric:
+  _target_: lightning.Fabric
+  num_nodes: 1
+  devices: 1
+  accelerator: cpu # or gpu
+
+wandb:
+  entity: ${oc.env:WANDB_ENTITY}
+  project: ${oc.env:WANDB_PROJECT}
