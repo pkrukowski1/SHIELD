@@ -107,7 +107,7 @@ class SHIELD(MethodABC):
         """
 
         if task_id > 0:
-            self.hnet.conditional_params[task_id-1].requires_grad_(False)
+            self.module.hnet.conditional_params[task_id-1].requires_grad_(False)
 
             self.regularization_targets = hreg.get_current_targets(
                 task_id, deepcopy(self.module.hnet)

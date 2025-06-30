@@ -1,13 +1,16 @@
-import logging
 from copy import deepcopy
 import numpy as np
 import pandas as pd
-from omegaconf import DictConfig
-from hydra.utils import instantiate
-import torch
-import wandb
 from typing import Tuple, Iterable, Optional, List
 import os
+import matplotlib.pyplot as plt
+
+from omegaconf import DictConfig
+from hydra.utils import instantiate
+import wandb
+import logging
+
+import torch
 
 from utils.fabric import setup_fabric
 from utils.handy_functions import write_pickle_file, plot_heatmap
@@ -42,8 +45,11 @@ def experiment(config: DictConfig) -> None:
     dataframe = pd.DataFrame(columns=["after_learning_of_task", "tested_task", "accuracy"])
 
     all_accuracies = []
-
+ 
     for task_id in range(no_tasks):
+
+        method.setup_task(task_id)
+
         best_hnet, best_target_network = train_single_task(
             method=method,
             task_id=task_id,
@@ -67,24 +73,25 @@ def experiment(config: DictConfig) -> None:
         )
 
         dataframe = dataframe.astype({"after_learning_of_task": "int", "tested_task": "int"})
-        dataframe.to_csv(f'{config.exp.model_path}/results.csv', sep=";")
+        dataframe.to_csv(f'{config.exp.log_dir}/results.csv', sep=";")
 
-        # Log accuracy matrix to wandb
         if wandb.run:
+            df_task = dataframe[dataframe["after_learning_of_task"] == task_id]
             wandb.log({
-                f"acc_after_task_{task_id}": wandb.Table(dataframe[dataframe["after_learning_of_task"] == task_id])
+                f"acc_after_task_{task_id}": wandb.Table(columns=df_task.columns.tolist(), data=df_task.values.tolist())
             })
 
-    write_pickle_file(f'{config.exp.model_path}/hnet', method.module.hnet.weights)
 
-    plot_heatmap(f'{config.exp.model_path}/results.csv')
+    write_pickle_file(f'{config.exp.log_dir}/hnet', method.module.hnet.weights)
+
+    plot_heatmap(f'{config.exp.log_dir}/results.csv')
 
     bwt = calculate_backward_transfer(dataframe)
     log.info(f"Backward transfer: {bwt:.4f}")
     if wandb.run:
         wandb.log({"backward_transfer": bwt})
 
-    plot_accuracy_progression(all_accuracies)
+    plot_accuracy_progression(all_accuracies, f"{config.exp.log_dir}/accuracy_progression.png")
 
 
 def should_log(iteration: int, total_no_iterations: int, no_epochs: Optional[int], no_iterations_per_epoch: Optional[int]) -> bool:
@@ -287,24 +294,44 @@ def calculate_backward_transfer(dataframe: pd.DataFrame) -> float:
         bwt += (last_acc - initial_acc)
     return bwt / (len(task_ids) - 1)
 
-def plot_accuracy_progression(all_accuracies: List[List[float]]) -> None:
+def plot_accuracy_progression(all_accuracies: List[List[float]], save_path: str) -> None:
     """
     Plots the test accuracy after each task for all tasks learned so far.
+    Includes:
+      - Accuracy just after learning each task
+      - Accuracy of each task after all tasks are learned
     """
-    import matplotlib.pyplot as plt
 
-    all_accuracies = np.array([np.pad(task_acc, (0, len(all_accuracies) - len(task_acc)), constant_values=np.nan)
-                                for task_acc in all_accuracies])
+    # Convert list of task accuracies to uniform array with NaNs
+    all_accuracies = np.array([
+        np.pad(task_acc, (0, len(all_accuracies) - len(task_acc)), constant_values=np.nan)
+        for task_acc in all_accuracies
+    ])  # shape: (num_tasks_learned, num_tasks_total)
+
+    num_tasks = all_accuracies.shape[1]
+    tasks = np.arange(1, num_tasks + 1)
+
+    # Extract just-after-training and after-all-training accuracy
+    just_after_training = np.diag(all_accuracies)  # accuracy[i][i]
+    after_all_training = all_accuracies[-1]        # last row
+
+    # Plot setup
     plt.figure(figsize=(10, 6))
-    for i in range(all_accuracies.shape[1]):
-        plt.plot(all_accuracies[:, i], marker='o', label=f'Task {i}')
-    plt.xlabel("After Learning Task")
-    plt.ylabel("Test Accuracy (%)")
-    plt.title("Test Accuracy for Each Task After Learning Sequence")
-    plt.legend()
+    plt.plot(tasks, just_after_training, marker='o', label="Just After Training")
+    plt.plot(tasks, after_all_training, marker='s', label="After All Tasks Trained")
+
+    plt.xlabel("Number of Task", fontsize=14)
+    plt.ylabel("Accuracy [%]", fontsize=14)
+    plt.title("Test Accuracy Progression", fontsize=16)
+    plt.xticks(ticks=tasks, fontsize=12)
+    plt.yticks(fontsize=12)
+    plt.legend(fontsize=12)
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig("accuracy_progression.png")
+
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    plt.savefig(save_path, dpi=300)
     plt.close()
+
     if wandb.run:
-        wandb.log({"accuracy_progression": wandb.Image("accuracy_progression.png")})
+        wandb.log({"accuracy_progression": wandb.Image(save_path)})

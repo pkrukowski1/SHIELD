@@ -16,9 +16,7 @@ def main(config: DictConfig):
     utils.setup_wandb(config)
     call(config.exp.run_func, config)
     wandb.finish()
-    if config.exp.cleanup:
-        shutil.rmtree(config.exp.log_dir, ignore_errors=True)
-
+   
 if __name__ == "__main__":
     pyrootutils.setup_root(
         search_from=__file__,
