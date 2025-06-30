@@ -55,13 +55,12 @@ class SHIELD(MethodABC):
                  use_lr_scheduler: bool,
                  beta: float,
                  mixup_alpha: float,
-                 no_iterations: int,
                  ):
         super().__init__(module=module, lr=lr, use_lr_scheduler=use_lr_scheduler)
 
         self.beta = beta
         self.mixup_alpha = mixup_alpha
-        self.no_iterations = no_iterations
+        self.no_iterations = None
 
         self.base_epsilon = epsilon
         self.current_epsilon = 0.0
@@ -70,6 +69,9 @@ class SHIELD(MethodABC):
         self.regularization_targets = None
         self.criterion = nn.CrossEntropyLoss()
         self.current_iteration = 0
+
+    def set_no_iterations(self, value: int) -> None:
+        self.no_iterations = value
 
     def schedule_epsilon(self, iteration: int) -> None:
         """
@@ -138,7 +140,6 @@ class SHIELD(MethodABC):
             - Adds regularization loss if not the first task, using the hypernetwork regularizer.
             - Returns the total loss as the sum of the current task loss and the scaled regularization loss.
         """
-
         if self.module.hnet.training:
             self.schedule_epsilon(self.current_iteration)
             self.schedule_kappa(self.current_iteration)

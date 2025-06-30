@@ -94,7 +94,7 @@ def experiment(config: DictConfig) -> None:
     plot_heatmap(f'{config.exp.log_dir}/results.csv')
 
     bwt = calculate_backward_transfer(dataframe)
-    log.info(f"Backward transfer: {bwt:.4f}")
+    log.info(f"Backward transfer: {bwt:.5f}")
     if wandb.run:
         wandb.log({"backward_transfer": bwt})
 
@@ -106,7 +106,7 @@ def should_log(iteration: int, total_no_iterations: int, no_epochs: Optional[int
     Determine if logging or validation should be performed at this iteration.
     """
     return (
-        (iteration % 100 == 0)
+        (iteration % 10 == 0)
         or (iteration == total_no_iterations - 1)
         or (no_epochs is not None and ((iteration + 1) % no_iterations_per_epoch == 0))
     )
@@ -119,12 +119,18 @@ def maybe_log_epoch(iteration: int, no_epochs: Optional[int], no_iterations_per_
         current_epoch = (iteration + 1) // no_iterations_per_epoch
         log.info(f"Current epoch: {current_epoch}")
 
-def log_metrics(iteration: int, task_id: int, loss: torch.Tensor, accuracy: float, no_incorrect_hypercubes: int) -> None:
+def log_metrics(iteration: int, task_id: int, loss: torch.Tensor, accuracy: float, 
+                no_incorrect_hypercubes: int, epsilon: float) -> None:
     """
     Log current training loss and validation metrics.
     """
     log.info(
-        f"Task {task_id}, iteration: {iteration + 1}, train loss: {loss.item()}, validation accuracy: {accuracy}, no incorrectly classified hypercubes: {no_incorrect_hypercubes}"
+        f"Task {task_id}, "
+        f"iteration: {iteration + 1}, "
+        f"train loss: {loss.item():.5f}, "
+        f"validation accuracy: {accuracy:.5f}, "
+        f"no incorrectly classified hypercubes: {no_incorrect_hypercubes}, "
+        f"epsilon: {epsilon}"
     )
     if wandb.run:
         wandb.log({
@@ -173,14 +179,17 @@ def train_single_task(method: MethodABC, task_id: int, task_datasets: Iterable, 
         no_iterations_per_epoch = None
         total_no_iterations = no_iterations
 
+    method.set_no_iterations(no_iterations)
+
     best_hnet = deepcopy(method.module.hnet)
     best_target_network = deepcopy(method.module.target_network)
     best_val_accuracy = 0.0
 
-    method.module.hnet.train()
     log.info(f"Train the {task_id}-th task")
 
     for iteration in range(total_no_iterations):
+        method.module.hnet.train()
+
         current_batch = current_dataset_instance.next_train_batch(batch_size)
 
         tensor_input = current_dataset_instance.input_to_torch_tensor(current_batch[0], device, mode="train")
@@ -205,7 +214,7 @@ def train_single_task(method: MethodABC, task_id: int, task_datasets: Iterable, 
             )
 
             no_incorrect = calculate_no_incorrectly_classified_hypercubes(worst_case_prediction, gt_output)
-            log_metrics(iteration, task_id, loss, accuracy, int(no_incorrect))
+            log_metrics(iteration, task_id, loss, accuracy, int(no_incorrect), method.current_epsilon)
 
             if should_update_best(accuracy, best_val_accuracy, iteration, total_no_iterations):
                 log.info("New best val acc")
@@ -284,7 +293,7 @@ def evaluate_previous_tasks(hnet: torch.nn.Module, target_network: torch.nn.Modu
             "tested_task": current_task_id,
             "accuracy": accuracy,
         }
-        log.info(f"Accuracy for task {current_task_id}: {accuracy}%")
+        log.info(f"Accuracy for task {current_task_id}: {accuracy:.5f}%")
         dataframe = pd.concat([dataframe, pd.DataFrame([result])], ignore_index=True)
 
     return dataframe
