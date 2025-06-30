@@ -7,7 +7,6 @@ from hydra.utils import instantiate
 import torch
 import wandb
 from typing import Tuple, Iterable, Optional, List
-from pathlib import Path
 import os
 
 from utils.fabric import setup_fabric
@@ -29,7 +28,6 @@ def experiment(config: DictConfig) -> None:
 
     log.info(f'Initializing scenarios')
     cl_dataset = instantiate(config.dataset)
-
     task_datasets = cl_dataset.prepare_tasks(os.getenv("DATA_DIR"))
 
     log.info(f'Launching Fabric')
@@ -46,7 +44,7 @@ def experiment(config: DictConfig) -> None:
     all_accuracies = []
 
     for task_id in range(no_tasks):
-        best_module = train_single_task(
+        best_hnet, best_target_network = train_single_task(
             method=method,
             task_id=task_id,
             task_datasets=task_datasets,
@@ -55,7 +53,8 @@ def experiment(config: DictConfig) -> None:
         )
 
         dataframe = evaluate_previous_tasks(
-            module=best_module,
+            hnet=best_hnet,
+            target_network=best_target_network,
             dataframe=dataframe,
             task_id=task_id,
             task_datasets=task_datasets,
@@ -142,8 +141,8 @@ def train_single_task(method: MethodABC, task_id: int, task_datasets: Iterable, 
     """
     Train the model for a single task.
     """
-    no_iterations = getattr(config.exp, "no_iterations", None)
-    no_epochs = getattr(config.exp, "no_epochs", None)
+    no_iterations = config.exp.no_iterations
+    no_epochs = config.exp.no_epochs
     batch_size = config.exp.batch_size
 
     assert no_iterations is not None or no_epochs is not None, "Arguments `no_iterations` and `no_epochs` cannot both be `None`"
@@ -160,8 +159,8 @@ def train_single_task(method: MethodABC, task_id: int, task_datasets: Iterable, 
         no_iterations_per_epoch = None
         total_no_iterations = no_iterations
 
-    # TODO Deepcopy only hnet and target network
-    best_module = deepcopy(method.module)
+    best_hnet = deepcopy(method.module.hnet)
+    best_target_network = deepcopy(method.module.target_network)
     best_val_accuracy = 0.0
 
     method.module.hnet.train()
@@ -172,8 +171,9 @@ def train_single_task(method: MethodABC, task_id: int, task_datasets: Iterable, 
 
         tensor_input = current_dataset_instance.input_to_torch_tensor(current_batch[0], device, mode="train")
         tensor_output = current_dataset_instance.output_to_torch_tensor(current_batch[1], device, mode="train")
+        gt_output = tensor_output.max(dim=1)[1]
 
-        loss, worst_case_prediction = method.forward(tensor_input, tensor_output, task_id)
+        loss, worst_case_prediction = method.forward(tensor_input, gt_output, task_id)
         loss = loss.mean()
         method.backward(loss)
 
@@ -182,24 +182,26 @@ def train_single_task(method: MethodABC, task_id: int, task_datasets: Iterable, 
 
             accuracy = calculate_accuracy(
                 current_dataset_instance,
-                model=method.module,
+                hnet=method.module.hnet,
+                target_network=method.module.target_network,
                 evaluation_dataset="validation",
                 epsilon=method.current_epsilon,
                 number_of_task=task_id,
                 device=device
             )
 
-            no_incorrect = calculate_no_incorrectly_classified_hypercubes(worst_case_prediction, tensor_output)
+            no_incorrect = calculate_no_incorrectly_classified_hypercubes(worst_case_prediction, gt_output)
             log_metrics(iteration, task_id, loss, accuracy, int(no_incorrect))
 
             if should_update_best(accuracy, best_val_accuracy, iteration, total_no_iterations):
                 log.info("New best val acc")
                 best_val_accuracy = accuracy
-                best_module = deepcopy(method.module)
+                best_hnet = deepcopy(method.module.hnet)
+                best_target_network = deepcopy(method.module.target_network)
 
             maybe_step_scheduler(method, iteration, total_no_iterations, accuracy, no_epochs)
 
-    return best_module
+    return best_hnet, best_target_network
 
 def calculate_no_incorrectly_classified_hypercubes(worst_case_prediction: torch.Tensor, gt_output: torch.Tensor) -> float:
     """
@@ -215,12 +217,13 @@ def calculate_number_of_iterations(number_of_samples: int, batch_size: int, numb
     total_no_of_iterations: int = no_of_iterations_per_epoch * number_of_epochs
     return no_of_iterations_per_epoch, total_no_of_iterations
 
-def calculate_accuracy(data, model: CLModuleABC, evaluation_dataset: str, epsilon: float, number_of_task: int, device: torch.device) -> float:
+def calculate_accuracy(data, hnet: torch.nn.Module, target_network: torch.nn.Module, evaluation_dataset: str,
+                        epsilon: float, number_of_task: int, device: torch.device) -> float:
     """
     Calculates the classification accuracy of a neural network model on a specified evaluation dataset.
     """
-    model.hnet.eval()
-    model.target_network.eval()
+    hnet.eval()
+    target_network.eval()
 
     if evaluation_dataset == "validation":
         input_data = data.get_val_inputs()
@@ -233,13 +236,18 @@ def calculate_accuracy(data, model: CLModuleABC, evaluation_dataset: str, epsilo
     test_output = data.output_to_torch_tensor(output_data, device, mode="inference")
     gt_classes = test_output.max(dim=1)[1]
 
-    logits, _ = model.target_network.forward(test_input, epsilon, number_of_task)
+    target_weights = hnet.forward(cond_id=number_of_task)
+    logits, _ =  target_network.forward(
+            test_input,
+            epsilon=epsilon, 
+            weights=target_weights
+        )
     predictions = logits.max(dim=1)[1]
     accuracy = torch.sum(gt_classes == predictions).float() / gt_classes.numel() * 100.0
 
     return accuracy.item()
 
-def evaluate_previous_tasks(module: CLModuleABC, dataframe: pd.DataFrame, task_id: int, 
+def evaluate_previous_tasks(hnet: torch.nn.Module, target_network: torch.nn.Module, dataframe: pd.DataFrame, task_id: int, 
                             task_datasets: Iterable, epsilon: float, device: torch.device) -> pd.DataFrame:
     """
     Evaluates the performance of a continual learning method on all previously learned tasks.
@@ -249,7 +257,8 @@ def evaluate_previous_tasks(module: CLModuleABC, dataframe: pd.DataFrame, task_i
 
         accuracy = calculate_accuracy(
             data=currently_tested_task,
-            model=module,
+            hnet=hnet,
+            target_network=target_network,
             evaluation_dataset="test",
             epsilon=epsilon,
             number_of_task=current_task_id,

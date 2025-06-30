@@ -10,7 +10,7 @@ exp:
   seed: 42
   log_dir: # set during runtime to automatically created dir
   batch_size: 32
-  no_epochs: None
+  no_epochs:
   no_iterations: 2000
 
 fabric:
