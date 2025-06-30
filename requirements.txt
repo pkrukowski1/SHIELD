@@ -21,10 +21,12 @@ GitPython @ file:///croot/gitpython_1720455034730/work
 hydra-core==1.3.2
 hypnettorch==0.0.4
 idna @ file:///croot/idna_1714398848350/work
+imageio==2.35.1
 importlib_resources==6.4.5
 Jinja2==3.1.6
 joblib==1.4.2
 kiwisolver==1.4.7
+lazy_loader==0.4
 lightning==2.3.3
 lightning-utilities==0.11.9
 MarkupSafe==2.1.5
@@ -60,8 +62,10 @@ python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
 pytorch-lightning==2.4.0
 pytz==2025.2
+PyWavelets==1.4.1
 PyYAML @ file:///croot/pyyaml_1728657952215/work
 requests @ file:///croot/requests_1721410876868/work
+scikit-image==0.21.0
 scikit-learn==1.3.2
 scipy==1.10.1
 seaborn==0.13.2
@@ -71,6 +75,7 @@ six @ file:///tmp/build/80754af9/six_1644875935023/work
 smmap @ file:///tmp/build/80754af9/smmap_1611694433573/work
 sympy==1.13.3
 threadpoolctl==3.5.0
+tifffile==2023.7.10
 torch==2.4.1
 torchmetrics==1.5.2
 torchvision==0.19.1

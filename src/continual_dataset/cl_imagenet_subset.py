@@ -1,4 +1,4 @@
-from continual_dataset.cl_imagenet_subset import SubsetImageNet
+from continual_dataset.dataset.imagenet_subset import SubsetImageNet
 from continual_dataset.cl_dataset_abc import ContinualLearningTaskGenerator
 
 

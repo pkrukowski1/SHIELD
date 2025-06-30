@@ -1,6 +1,6 @@
 import numpy as np
 
-from continual_dataset.cl_rotated_mnist import RotatedMNIST
+from continual_dataset.dataset.rotated_mnist import RotatedMNIST
 from continual_dataset.cl_dataset_abc import ContinualLearningTaskGenerator
 
 
