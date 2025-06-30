@@ -5,11 +5,13 @@ defaults:
   - method: shield
 
 exp:
-  _target_: experiment.interval_training
+  run_func:
+    _target_: experiment.interval_training
   seed: 42
   log_dir: # set during runtime to automatically created dir
   batch_size: 32
-  epochs: 1
+  no_epochs: None
+  no_iterations: 2000
 
 fabric:
   _target_: lightning.Fabric

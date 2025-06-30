@@ -1,0 +1,7 @@
+_target_: method.SHIELD
+lr: 0.001
+use_lr_scheduler: False
+beta: 0.01
+mixup_alpha: 0.01
+no_iterations: 1000
+epsilon: 0.01

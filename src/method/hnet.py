@@ -3,6 +3,7 @@ from torch import nn
 import hypnettorch.utils.hnet_regularizer as hreg
 
 from method.method_abc import MethodABC
+from model.model_abc import CLModuleABC
 
 from typing import Tuple
 from copy import deepcopy
@@ -10,7 +11,10 @@ from copy import deepcopy
 class HNET(MethodABC):
    
 
-    def __init__(self, 
+    def __init__(self,
+                 module: CLModuleABC,
+                 lr: float,
+                 use_lr_scheduler: bool,
                  beta: float,
                  ):
         """
@@ -19,10 +23,14 @@ class HNET(MethodABC):
         initializes the regularization targets, and defines the loss criterion as cross-entropy loss.
 
         Args:
+            module (CLModuleABC): Continual learning module object.
+            lr (float): Learning rate.
+            use_lr_scheduler (bool): Flag to indicate if a learning rate scheduler should
+                be used or not.
             beta (float): Regularization strength or scaling parameter for the hypernetwork.
         """
         
-        super().__init__()
+        super().__init__(module=module, lr=lr, use_lr_scheduler=use_lr_scheduler)
 
         self.beta = beta
         

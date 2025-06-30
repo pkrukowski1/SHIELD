@@ -21,17 +21,24 @@ class CLModuleABC(nn.Module, metaclass=ABCMeta):
             computation of the module.
     """
 
-    def __init__(self, learnable_params: nn.ParameterList, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         """
         Initialize the CLModuleABC.
 
         Args:
-            learnable_params (nn.ParameterList): List of learnable parameters.
             *args: Additional positional arguments for the nn.Module constructor.
             **kwargs: Additional keyword arguments for the nn.Module constructor.
         """
         super().__init__(*args, **kwargs)
-        self.learnable_params = learnable_params
+        self._learnable_params = None
+
+    @property
+    def learnable_params(self):
+        return self._learnable_params
+
+    @learnable_params.setter
+    def learnable_params(self, params):
+        self._learnable_params = params
 
     @abstractmethod
     def forward(self, x, epsilon, task_id, *args, **kwargs):

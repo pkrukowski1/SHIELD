@@ -4,6 +4,7 @@ import hypnettorch.utils.hnet_regularizer as hreg
 
 from method.method_abc import MethodABC
 from method.utils import mixup_data
+from model.model_abc import CLModuleABC
 
 from typing import Tuple
 from copy import deepcopy
@@ -16,6 +17,11 @@ class SHIELD(MethodABC):
     weights and applies a combination of fit and specification losses, balanced by a scheduled 
     kappa parameter, to optimize performance on both current and previous tasks.
     Args:
+        module (CLModuleABC): Continual learning module object.
+        epsilon (float): Perturbation radii.
+        lr (float): Learning rate.
+        use_lr_scheduler (bool): Flag to indicate if a learning rate scheduler should
+            be used or not.
         beta (float): Regularization strength for previous tasks.
         mixup_alpha (float): Alpha parameter for the mixup data augmentation.
         no_iterations (int): Total number of training iterations per task.
@@ -23,7 +29,7 @@ class SHIELD(MethodABC):
         beta (float): Regularization strength for previous tasks.
         mixup_alpha (float): Alpha parameter for the mixup data augmentation.
         no_iterations (int): Total number of training iterations per task.
-        base_epsilon (float): Base perturbation value, typically set from the module.
+        base_epsilon (float): Base perturbation value.
         current_epsilon (float): Current perturbation value, scheduled during training.
         current_kappa (float): Current kappa value, scheduled during training.
         regularization_targets (Any): Targets for regularization, set for tasks > 0.
@@ -38,18 +44,22 @@ class SHIELD(MethodABC):
     """
    
 
-    def __init__(self, 
+    def __init__(self,
+                 module: CLModuleABC,
+                 epsilon: float,
+                 lr: float,
+                 use_lr_scheduler: bool,
                  beta: float,
                  mixup_alpha: float,
                  no_iterations: int,
                  ):
-        super().__init__()
+        super().__init__(module=module, lr=lr, use_lr_scheduler=use_lr_scheduler)
 
         self.beta = beta
         self.mixup_alpha = mixup_alpha
         self.no_iterations = no_iterations
 
-        self.base_epsilon = self.module.epsilon
+        self.base_epsilon = epsilon
         self.current_epsilon = 0.0
         self.current_kappa = 1.0
 

@@ -77,7 +77,7 @@ class MethodABC(metaclass=ABCMeta):
         gradients.
         """
 
-        params = list(*self.module.learnable_params)
+        params = list(self.module.learnable_params)
 
         # Double check if the parameters require gradients
         params = filter(lambda p: p.requires_grad, params)

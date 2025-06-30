@@ -22,7 +22,7 @@ def main(config: DictConfig):
 if __name__ == "__main__":
     pyrootutils.setup_root(
         search_from=__file__,
-        indicator=".project-root",
+        indicator="requirements.txt",
         project_root_env_var=True,
         dotenv=True,
         pythonpath=True,

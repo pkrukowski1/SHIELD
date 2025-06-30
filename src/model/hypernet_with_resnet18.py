@@ -45,6 +45,8 @@ class HyperNetWithResNet18(CLModuleABC):
             number_of_tasks (int): Total number of tasks for continual learning.
             hnet_embedding_size (int): Size of the embedding used to condition the hypernetwork.
         """
+        super().__init__()
+
         self.target_network = IntervalResNet18(
                 in_shape=in_shape,
                 use_bias=True,
@@ -73,8 +75,6 @@ class HyperNetWithResNet18(CLModuleABC):
 
         self.learnable_params = self.hnet.parameters()
         
-        super.__init__(self, learnable_params=self.hnet.parameters())
-
     def forward(self, x, epsilon, task_id):
         """
         Perform a forward pass through the target network using weights generated 

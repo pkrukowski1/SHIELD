@@ -1,0 +1,4 @@
+_target_: continual_dataset.SplitMNIST
+no_tasks: 5
+use_augmentation: False
+validation_size: 1000

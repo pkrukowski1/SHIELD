@@ -6,7 +6,9 @@ from omegaconf import DictConfig
 from hydra.utils import instantiate
 import torch
 import wandb
-from typing import Tuple, Iterable, Optional
+from typing import Tuple, Iterable, Optional, List
+from pathlib import Path
+import os
 
 from utils.fabric import setup_fabric
 from utils.handy_functions import write_pickle_file, plot_heatmap
@@ -22,13 +24,13 @@ def experiment(config: DictConfig) -> None:
     Initializes datasets, fabric, model, method, and handles training and evaluation
     across tasks. Logs metrics and saves outputs via wandb and to local files.
     """
-    if config.exp.detect_anomaly:
-        torch.autograd.set_detect_anomaly(True)
 
-    no_tasks = config.exp.no_tasks
+    no_tasks = config.dataset.no_tasks
 
     log.info(f'Initializing scenarios')
     cl_dataset = instantiate(config.dataset)
+
+    task_datasets = cl_dataset.prepare_tasks(os.getenv("DATA_DIR"))
 
     log.info(f'Launching Fabric')
     fabric = setup_fabric(config)
@@ -37,7 +39,7 @@ def experiment(config: DictConfig) -> None:
     model = fabric.setup(instantiate(config.model))
 
     log.info(f'Setting up method')
-    method: MethodABC = instantiate(config.method)(model)
+    method = instantiate(config.method, module=model)
 
     dataframe = pd.DataFrame(columns=["after_learning_of_task", "tested_task", "accuracy"])
 
@@ -47,7 +49,7 @@ def experiment(config: DictConfig) -> None:
         best_module = train_single_task(
             method=method,
             task_id=task_id,
-            cl_dataset=cl_dataset,
+            task_datasets=task_datasets,
             config=config,
             device=fabric.device
         )
@@ -56,7 +58,7 @@ def experiment(config: DictConfig) -> None:
             module=best_module,
             dataframe=dataframe,
             task_id=task_id,
-            cl_dataset=cl_dataset,
+            task_datasets=task_datasets,
             epsilon=method.base_epsilon,
             device=fabric.device
         )
@@ -136,18 +138,17 @@ def maybe_step_scheduler(method: MethodABC, iteration: int, total_no_iterations:
         log.info("Finishing the current epoch")
         method.make_scheduler_step(accuracy)
 
-def train_single_task(method: MethodABC, task_id: int, cl_dataset: Iterable, config: DictConfig, device: torch.device) -> CLModuleABC:
+def train_single_task(method: MethodABC, task_id: int, task_datasets: Iterable, config: DictConfig, device: torch.device) -> CLModuleABC:
     """
     Train the model for a single task.
     """
-    no_iterations: Optional[int] = getattr(config, "no_iterations", None)
-    no_epochs: Optional[int] = getattr(config, "no_epochs", None)
-    batch_size: int = config.batch_size
+    no_iterations = getattr(config.exp, "no_iterations", None)
+    no_epochs = getattr(config.exp, "no_epochs", None)
+    batch_size = config.exp.batch_size
 
     assert no_iterations is not None or no_epochs is not None, "Arguments `no_iterations` and `no_epochs` cannot both be `None`"
 
-    method.setup_optim()
-    current_dataset_instance = cl_dataset[task_id]
+    current_dataset_instance = task_datasets[task_id]
 
     if no_epochs is not None:
         no_iterations_per_epoch, total_no_iterations = calculate_number_of_iterations(
@@ -159,8 +160,9 @@ def train_single_task(method: MethodABC, task_id: int, cl_dataset: Iterable, con
         no_iterations_per_epoch = None
         total_no_iterations = no_iterations
 
-    best_module: CLModuleABC = deepcopy(method.module)
-    best_val_accuracy: float = 0.0
+    # TODO Deepcopy only hnet and target network
+    best_module = deepcopy(method.module)
+    best_val_accuracy = 0.0
 
     method.module.hnet.train()
     log.info(f"Train the {task_id}-th task")
@@ -237,12 +239,13 @@ def calculate_accuracy(data, model: CLModuleABC, evaluation_dataset: str, epsilo
 
     return accuracy.item()
 
-def evaluate_previous_tasks(module: CLModuleABC, dataframe: pd.DataFrame, task_id: int, cl_dataset: Iterable, epsilon: float, device: torch.device) -> pd.DataFrame:
+def evaluate_previous_tasks(module: CLModuleABC, dataframe: pd.DataFrame, task_id: int, 
+                            task_datasets: Iterable, epsilon: float, device: torch.device) -> pd.DataFrame:
     """
     Evaluates the performance of a continual learning method on all previously learned tasks.
     """
     for current_task_id in range(task_id + 1):
-        currently_tested_task = cl_dataset[current_task_id]
+        currently_tested_task = task_datasets[current_task_id]
 
         accuracy = calculate_accuracy(
             data=currently_tested_task,
@@ -275,7 +278,7 @@ def calculate_backward_transfer(dataframe: pd.DataFrame) -> float:
         bwt += (last_acc - initial_acc)
     return bwt / (len(task_ids) - 1)
 
-def plot_accuracy_progression(all_accuracies: list[list[float]]) -> None:
+def plot_accuracy_progression(all_accuracies: List[List[float]]) -> None:
     """
     Plots the test accuracy after each task for all tasks learned so far.
     """

@@ -7,26 +7,29 @@ class SplitMNIST(ContinualLearningTaskGenerator):
     """
     Task generator for SplitMNIST.
 
-    This version splits the MNIST dataset into `number_of_tasks` tasks,
+    This version splits the MNIST dataset into `no_tasks` tasks,
     each with 2 consecutive digit classes (e.g., [0,1], [2,3], ..., [8,9]).
     """
 
     def __init__(
         self,
-        number_of_tasks: int = 5,
+        no_tasks: int = 5,
         use_augmentation: bool = False,
-        seed: int = None,
+        validation_size: int = 1000,
     ):
         """
-        Initialize the SplitMNISTTaskGenerator.
-
+        Initializes the SplitMNISTTaskGenerator.
+        
         Args:
-            number_of_tasks (int): Number of tasks (default: 5).
-            use_augmentation (bool): Whether to use data augmentation.
-            seed (int, optional): Unused, but included for interface compatibility.
+            no_tasks (int, optional): Number of tasks to split the MNIST dataset into. Defaults to 5.
+            use_augmentation (bool, optional): If True, applies data augmentation to the dataset. Defaults to False.
+            validation_size (int, optional): Number of samples to use for validation. Defaults to 1000.
         """
-        super().__init__(number_of_tasks=number_of_tasks, seed=seed)
+        super().__init__()
+
+        self.no_tasks = no_tasks
         self.use_augmentation = use_augmentation
+        self.validation_size = validation_size
 
     def _generate_task_variations(self):
         """
@@ -38,15 +41,13 @@ class SplitMNIST(ContinualLearningTaskGenerator):
         return None
 
     def prepare_tasks(
-        self, datasets_folder: str, padding: int = 0, validation_size: int = 0
+        self, datasets_folder: str
     ) -> List:
         """
         Prepare SplitMNIST tasks.
 
         Args:
             datasets_folder (str): Directory for dataset download/storage.
-            padding (int): Not used in this generator, kept for consistency.
-            validation_size (int): Number of validation samples per task.
 
         Returns:
             List: A list of dataset handlers for each task.
@@ -54,8 +55,8 @@ class SplitMNIST(ContinualLearningTaskGenerator):
         return get_split_mnist_handlers(
             datasets_folder,
             use_one_hot=True,
-            validation_size=validation_size,
+            validation_size=self.validation_size,
             num_classes_per_task=2,
-            num_tasks=self.number_of_tasks,
+            num_tasks=self.no_tasks,
             use_torch_augmentation=self.use_augmentation,
         )

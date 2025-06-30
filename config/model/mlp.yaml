@@ -1,6 +1,6 @@
 _target_: model.HyperNetWithMLP
-in_shape: 784,
-no_classes_per_task: 2,
+in_shape: 784
+no_classes_per_task: 2
 activation_function:
   __target__: torch.nn.ReLU
 hnet_hidden_layers: [100,100]

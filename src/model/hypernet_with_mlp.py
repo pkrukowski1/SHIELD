@@ -18,7 +18,7 @@ class HyperNetWithMLP(CLModuleABC):
         target_network (IntervalMLP): The main task-specific network that takes weights
             from the hypernetwork and processes inputs accordingly.
         hnet (HMLP): A conditional hypernetwork that generates weights for the MLP.
-        parameters (iterable): The parameters of the hypernetwork (for optimization).
+        learnable_params (iterable): The parameters of the hypernetwork (for optimization).
     """
 
     def __init__(self, 
@@ -41,6 +41,9 @@ class HyperNetWithMLP(CLModuleABC):
             number_of_tasks (int): Number of distinct tasks (used for conditional embeddings).
             hnet_embedding_size (int): Dimensionality of task embeddings in the hypernetwork.
         """
+
+        super().__init__()
+
         self.target_network = IntervalMLP(
             n_in=in_shape,
             n_out=no_classes_per_task,
@@ -61,7 +64,6 @@ class HyperNetWithMLP(CLModuleABC):
 
         self.learnable_params = self.hnet.parameters()
         
-        super().__init__(learnable_params=self.hnet.parameters())
 
     def forward(self, x, task_id, epsilon):
         """
