@@ -81,6 +81,13 @@ def experiment(config: DictConfig) -> None:
                 f"acc_after_task_{task_id}": wandb.Table(columns=df_task.columns.tolist(), data=df_task.values.tolist())
             })
 
+        # Log average accuracy after learning up to task_id
+        accs_up_to_now = dataframe[dataframe["after_learning_of_task"] == task_id]["accuracy"]
+        avg_acc = accs_up_to_now.mean()
+        log.info(f"Average accuracy after task {task_id}: {avg_acc:.2f}%")
+        if wandb.run:
+            wandb.log({f"avg_accuracy_up_to_task_{task_id}": avg_acc})
+
 
     write_pickle_file(f'{config.exp.log_dir}/hnet', method.module.hnet.weights)
 
