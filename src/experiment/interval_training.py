@@ -106,7 +106,7 @@ def should_log(iteration: int, total_no_iterations: int, no_epochs: Optional[int
     Determine if logging or validation should be performed at this iteration.
     """
     return (
-        (iteration % 10 == 0)
+        (iteration % 100 == 0)
         or (iteration == total_no_iterations - 1)
         or (no_epochs is not None and ((iteration + 1) % no_iterations_per_epoch == 0))
     )
@@ -130,7 +130,7 @@ def log_metrics(iteration: int, task_id: int, loss: torch.Tensor, accuracy: floa
         f"train loss: {loss.item():.5f}, "
         f"validation accuracy: {accuracy:.5f}, "
         f"no incorrectly classified hypercubes: {no_incorrect_hypercubes}, "
-        f"epsilon: {epsilon}"
+        f"epsilon: {epsilon:.8f}"
     )
     if wandb.run:
         wandb.log({
@@ -179,7 +179,7 @@ def train_single_task(method: MethodABC, task_id: int, task_datasets: Iterable, 
         no_iterations_per_epoch = None
         total_no_iterations = no_iterations
 
-    method.set_no_iterations(no_iterations)
+    method.set_no_iterations(total_no_iterations)
 
     best_hnet = deepcopy(method.module.hnet)
     best_target_network = deepcopy(method.module.target_network)

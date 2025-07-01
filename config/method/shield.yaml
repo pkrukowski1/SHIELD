@@ -1,6 +1,6 @@
 _target_: method.SHIELD
 lr: 0.001
-use_lr_scheduler: False
+use_lr_scheduler: True
 beta: 0.01
-mixup_alpha: 0.01
-epsilon: 0.1
+mixup_alpha: 0.1
+epsilon: 0.05

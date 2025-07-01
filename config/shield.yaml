@@ -1,7 +1,7 @@
 defaults:
   - _self_
-  - dataset: split_mnist
-  - model: mlp
+  - dataset: split_cifar_100
+  - model: alexnet
   - method: shield
 
 exp:
@@ -10,8 +10,8 @@ exp:
   seed: 42
   log_dir: # set during runtime to automatically created dir
   batch_size: 32
-  no_epochs:
-  no_iterations: 1000
+  no_epochs: 200
+  no_iterations:
 
 fabric:
   _target_: lightning.Fabric

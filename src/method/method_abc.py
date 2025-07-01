@@ -32,6 +32,7 @@ class MethodABC(metaclass=ABCMeta):
         self.module = module
         self.lr = lr
         self.use_lr_scheduler = use_lr_scheduler
+        self.scheduler = None
 
         self.setup_optim()
 
@@ -112,16 +113,17 @@ class MethodABC(metaclass=ABCMeta):
         loss.backward()
         self.optimizer.step()
 
-    def make_scheduler_step(self, metrics: dict) -> None:
+    def make_scheduler_step(self, val_accuracy: float) -> None:
         """
         Makes a step for the learning rate scheduler.
 
         Args:
-            metrics (dict): A dictionary containing metrics to be used by the scheduler.
-            
-        This method calls the step function of the learning rate scheduler with the
-        specified metrics.
+            val_accuracy (float): The validation accuracy metric to be used by the learning rate scheduler
+            for adjusting the learning rate. This value is typically obtained after evaluating the model
+            on the validation dataset at the end of an epoch.
+        This method calls the step function of the learning rate scheduler with the specified validation
+        accuracy metric, allowing the scheduler to update the learning rate based on model performance.
         """
         
         if self.use_lr_scheduler:
-            self.scheduler.step(metrics["val_acc"])
+            self.scheduler.step(val_accuracy)

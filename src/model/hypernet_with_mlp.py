@@ -1,7 +1,8 @@
 from model.target_network.mlp import IntervalMLP
 from model.model_abc import CLModuleABC
-
 from typing import Tuple
+
+import torch
 import torch.nn as nn
 from hypnettorch.hnets import HMLP
 
@@ -28,7 +29,7 @@ class HyperNetWithMLP(CLModuleABC):
                  hnet_hidden_layers: Tuple[int, ...],
                  target_hidden_layers: Tuple[int, ...],
                  number_of_tasks: int,
-                 hnet_embedding_size: int):
+                 hnet_embedding_size: int) -> None:
         """
         Initialize the HyperNetWithMLP module.
 
@@ -65,7 +66,7 @@ class HyperNetWithMLP(CLModuleABC):
         self.learnable_params = self.hnet.parameters()
         
 
-    def forward(self, x, task_id, epsilon):
+    def forward(self, x: torch.Tensor, task_id: int, epsilon: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Perform a forward pass through the target network using weights generated 
         by the hypernetwork conditioned on the given task ID.

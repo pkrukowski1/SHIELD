@@ -1,6 +1,4 @@
-import numpy as np
 from hypnettorch.data.special.split_cifar import SplitCIFAR100Data
-from typing import List
 
 from continual_dataset.cl_dataset_abc import ContinualLearningTaskGenerator
 
@@ -14,55 +12,52 @@ class SplitCIFAR100(ContinualLearningTaskGenerator):
 
     def __init__(
         self,
-        number_of_tasks: int = 10,
-        seed: int = 42,
+        no_tasks: int = 10,
         use_augmentation: bool = False,
         use_cutout: bool = False,
-    ):
+        validation_size: int = 500
+    ) -> None:
         """
         Initialize the SplitCIFAR100.
 
         Args:
-            number_of_tasks (int): Number of tasks (default 10 for 10x10 split).
-            seed (int): Random seed for reproducibility (default 42).
-            use_augmentation (bool): Whether to use data augmentation.
-            use_cutout (bool): Whether to apply cutout (if supported).
+            no_tasks (int): Number of tasks to split the CIFAR-100 dataset into (default is 10 for a 10x10 split).
+            use_augmentation (bool): Whether to use data augmentation during training.
+            use_cutout (bool): Whether to apply cutout augmentation (if supported).
+            validation_size (int): Number of samples to use for the validation set per task.
         """
-        super().__init__(number_of_tasks=number_of_tasks, seed=seed)
+        super().__init__()
         self.use_augmentation = use_augmentation
         self.use_cutout = use_cutout
-        self.no_classes_per_task = 100 // number_of_tasks
+        self.no_classes_per_task = 100 // no_tasks
+        self.validation_size = validation_size
+        self.no_tasks = no_tasks
 
-    def _generate_task_variations(self) -> List[range]:
+    def _generate_task_variations(self) -> None:
         """
-        Generate label splits for each task (e.g., [0-9], [10-19], ..., [90-99]).
+        Not used in this generator, as split is handled internally.
 
         Returns:
-            List[range]: A list of class label ranges for each task.
+            None
         """
-        rng = np.random.default_rng(self.seed)
-        class_permutation = rng.permutation(100)
-        return [class_permutation[i:i + self.no_classes_per_task] 
-                for i in range(0, 5 * self.number_of_tasks, self.no_classes_per_task)]
+        return None
 
-    def prepare_tasks(self, datasets_folder: str, padding: int = 0, validation_size: int = 0):
+    def prepare_tasks(self, datasets_folder: str):
         """
         Prepare Split CIFAR-100 tasks.
 
         Args:
             datasets_folder (str): Folder for dataset download/storage.
-            padding (int): Not used here, included for compatibility.
-            validation_size (int): Number of validation samples per task.
 
         Returns:
             List[SplitCIFAR100Data]: List of dataset handlers for each task.
         """
-        label_splits = self._generate_task_variations()
+        label_splits = [range(self.no_classes_per_task*i, self.no_classes_per_task*(i+1)) for i in range(self.no_tasks)]
         handlers = [
             SplitCIFAR100Data(
                 datasets_folder,
                 use_one_hot=True,
-                validation_size=validation_size,
+                validation_size=self.validation_size,
                 use_data_augmentation=self.use_augmentation,
                 use_cutout=self.use_cutout,
                 labels=label_range,

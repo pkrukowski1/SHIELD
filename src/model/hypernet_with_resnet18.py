@@ -2,6 +2,8 @@ from model.target_network.resnet18 import IntervalResNet18
 from model.model_abc import CLModuleABC
 
 from typing import Tuple
+
+import torch
 import torch.nn as nn
 from hypnettorch.hnets import HMLP
 
@@ -18,8 +20,6 @@ class HyperNetWithResNet18(CLModuleABC):
     Attributes:
         target_network (IntervalResNet18): The target network that receives weights 
             from the hypernetwork.
-        epsilon (float): Perturbation magnitude used in robust training (e.g., 
-            for interval bound propagation).
         hnet (HMLP): Hypernetwork that generates the weights of the target network 
             conditioned on the task.
         parameters (iterable): The parameters of the hypernetwork.
@@ -28,18 +28,16 @@ class HyperNetWithResNet18(CLModuleABC):
     def __init__(self, 
                  in_shape: Tuple[int, int, int],
                  no_classes_per_task: int,
-                 epsilon: float,
                  activation_function: nn.Module,
                  hnet_hidden_layers: Tuple[int, ...],
                  number_of_tasks: int,
-                 hnet_embedding_size: int):
+                 hnet_embedding_size: int) -> None:
         """
         Initialize the HyperNetWithAlexNet module.
 
         Args:
             in_shape (Tuple[int, int, int]): Shape of the input images (C, H, W).
             no_classes_per_task (int): Number of output classes per task.
-            epsilon (float): Perturbation magnitude for robust training.
             activation_function (nn.Module): Activation function used in the hypernetwork.
             hnet_hidden_layers (Tuple[int, ...]): Sizes of the hidden layers in the hypernetwork.
             number_of_tasks (int): Total number of tasks for continual learning.
@@ -62,7 +60,6 @@ class HyperNetWithResNet18(CLModuleABC):
                 cutout_mod=False,
                 mode="default"
             )
-        self.epsilon = epsilon
 
         self.hnet = HMLP(
             self.target_network.param_shapes,
@@ -75,7 +72,7 @@ class HyperNetWithResNet18(CLModuleABC):
 
         self.learnable_params = self.hnet.parameters()
         
-    def forward(self, x, epsilon, task_id):
+    def forward(self, x: torch.Tensor, epsilon: float, task_id: int) -> Tuple[torch.Tensor,torch.Tensor]:
         """
         Perform a forward pass through the target network using weights generated 
         by the hypernetwork conditioned on the given task ID.

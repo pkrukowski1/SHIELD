@@ -16,7 +16,7 @@ class SplitMNIST(ContinualLearningTaskGenerator):
         no_tasks: int = 5,
         use_augmentation: bool = False,
         validation_size: int = 1000,
-    ):
+    ) -> None:
         """
         Initializes the SplitMNISTTaskGenerator.
         
@@ -31,7 +31,7 @@ class SplitMNIST(ContinualLearningTaskGenerator):
         self.use_augmentation = use_augmentation
         self.validation_size = validation_size
 
-    def _generate_task_variations(self):
+    def _generate_task_variations(self) -> None:
         """
         Not used in this generator, as split is handled internally by `get_split_mnist_handlers`.
 
