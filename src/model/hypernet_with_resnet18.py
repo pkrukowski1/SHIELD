@@ -58,7 +58,6 @@ class HyperNetWithResNet18(CLModuleABC):
                 projection_shortcut=True,
                 bn_track_stats=False,
                 cutout_mod=False,
-                mode="default"
             )
 
         self.hnet = HMLP(

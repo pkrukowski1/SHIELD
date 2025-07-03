@@ -1,0 +1,4 @@
+_target_: continual_dataset.SplitMiniImageNet
+number_of_tasks: 10
+use_augmentation: False
+validation_size: 2000

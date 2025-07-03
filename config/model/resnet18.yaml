@@ -1,5 +1,5 @@
 _target_: model.HyperNetWithResNet18
-in_shape: [3,32,32]
+in_shape: [3,64,64]
 no_classes_per_task: 10
 activation_function:
   _target_: torch.nn.ReLU
