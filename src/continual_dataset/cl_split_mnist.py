@@ -7,13 +7,13 @@ class SplitMNIST(ContinualLearningTaskGenerator):
     """
     Task generator for SplitMNIST.
 
-    This version splits the MNIST dataset into `no_tasks` tasks,
+    This version splits the MNIST dataset into `number_of_tasks` tasks,
     each with 2 consecutive digit classes (e.g., [0,1], [2,3], ..., [8,9]).
     """
 
     def __init__(
         self,
-        no_tasks: int = 5,
+        number_of_tasks: int = 5,
         use_augmentation: bool = False,
         validation_size: int = 1000,
     ) -> None:
@@ -21,13 +21,13 @@ class SplitMNIST(ContinualLearningTaskGenerator):
         Initializes the SplitMNISTTaskGenerator.
         
         Args:
-            no_tasks (int, optional): Number of tasks to split the MNIST dataset into. Defaults to 5.
+            number_of_tasks (int, optional): Number of tasks to split the MNIST dataset into. Defaults to 5.
             use_augmentation (bool, optional): If True, applies data augmentation to the dataset. Defaults to False.
             validation_size (int, optional): Number of samples to use for validation. Defaults to 1000.
         """
         super().__init__()
 
-        self.no_tasks = no_tasks
+        self.number_of_tasks = number_of_tasks
         self.use_augmentation = use_augmentation
         self.validation_size = validation_size
 
@@ -57,6 +57,6 @@ class SplitMNIST(ContinualLearningTaskGenerator):
             use_one_hot=True,
             validation_size=self.validation_size,
             num_classes_per_task=2,
-            num_tasks=self.no_tasks,
+            num_tasks=self.number_of_tasks,
             use_torch_augmentation=self.use_augmentation,
         )

@@ -27,7 +27,7 @@ def experiment(config: DictConfig) -> None:
     across tasks. Logs metrics and saves outputs via wandb and to local files.
     """
 
-    no_tasks = config.dataset.no_tasks
+    number_of_tasks = config.dataset.number_of_tasks
 
     log.info(f'Initializing scenarios')
     cl_dataset = instantiate(config.dataset)
@@ -37,7 +37,7 @@ def experiment(config: DictConfig) -> None:
     fabric = setup_fabric(config)
 
     log.info(f'Building model')
-    model = fabric.setup(instantiate(config.model))
+    model = fabric.setup(instantiate(config.model, number_of_tasks=number_of_tasks))
 
     log.info(f'Setting up method')
     method = instantiate(config.method, module=model)
@@ -46,7 +46,7 @@ def experiment(config: DictConfig) -> None:
 
     all_accuracies = []
  
-    for task_id in range(no_tasks):
+    for task_id in range(number_of_tasks):
 
         method.setup_task(task_id)
 

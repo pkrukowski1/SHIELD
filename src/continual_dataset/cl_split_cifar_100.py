@@ -12,7 +12,7 @@ class SplitCIFAR100(ContinualLearningTaskGenerator):
 
     def __init__(
         self,
-        no_tasks: int = 10,
+        number_of_tasks: int = 10,
         use_augmentation: bool = False,
         use_cutout: bool = False,
         validation_size: int = 500
@@ -21,7 +21,7 @@ class SplitCIFAR100(ContinualLearningTaskGenerator):
         Initialize the SplitCIFAR100.
 
         Args:
-            no_tasks (int): Number of tasks to split the CIFAR-100 dataset into (default is 10 for a 10x10 split).
+            number_of_tasks (int): Number of tasks to split the CIFAR-100 dataset into (default is 10 for a 10x10 split).
             use_augmentation (bool): Whether to use data augmentation during training.
             use_cutout (bool): Whether to apply cutout augmentation (if supported).
             validation_size (int): Number of samples to use for the validation set per task.
@@ -29,9 +29,9 @@ class SplitCIFAR100(ContinualLearningTaskGenerator):
         super().__init__()
         self.use_augmentation = use_augmentation
         self.use_cutout = use_cutout
-        self.no_classes_per_task = 100 // no_tasks
+        self.no_classes_per_task = 100 // number_of_tasks
         self.validation_size = validation_size
-        self.no_tasks = no_tasks
+        self.number_of_tasks = number_of_tasks
 
     def _generate_task_variations(self) -> None:
         """
@@ -52,7 +52,7 @@ class SplitCIFAR100(ContinualLearningTaskGenerator):
         Returns:
             List[SplitCIFAR100Data]: List of dataset handlers for each task.
         """
-        label_splits = [range(self.no_classes_per_task*i, self.no_classes_per_task*(i+1)) for i in range(self.no_tasks)]
+        label_splits = [range(self.no_classes_per_task*i, self.no_classes_per_task*(i+1)) for i in range(self.number_of_tasks)]
         handlers = [
             SplitCIFAR100Data(
                 datasets_folder,
