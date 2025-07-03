@@ -3,6 +3,8 @@ from hypnettorch.data.special import permuted_mnist
 
 from continual_dataset.cl_dataset_abc import ContinualLearningTaskGenerator
 
+from typing import List
+
 class PermutedMNIST(ContinualLearningTaskGenerator):
     """
     A utility class to generate a list of PermutedMNIST tasks for continual learning.
@@ -11,19 +13,33 @@ class PermutedMNIST(ContinualLearningTaskGenerator):
     which helps simulate different tasks in a continual learning setup.
     """
 
-    def __init__(self, input_shape: int, number_of_tasks: int, seed: int = 42):
+    def __init__(self, number_of_tasks: int, seed: int = 1, padding: int = 2, validation_size: int = 5000) -> None:
         """
         Initialize the PermutedMNISTTaskGenerator.
 
         Args:
-            input_shape (int): The number of pixels (e.g., 784 for 28x28 MNIST images).
-            number_of_tasks (int): The total number of permuted tasks to generate.
-            seed (int): Random seed for reproducibility (default 42).
-        """
-        super().__init__(number_of_tasks=number_of_tasks, seed=seed)
-        self.input_shape = input_shape
+            number_of_tasks (int, optional): The total number of rotated tasks.
+            seed (int, optional): Random seed for reproducibility. Defaults to 1.
+            padding (int, optional): Amount of zero-padding to apply to each image. Defaults to 2.
+            validation_size (int, optional): Number of samples to use for the validation set. Defaults to 5000.
 
-    def _generate_task_variations(self):
+        Attributes:
+            input_shape (int): The number of pixels (e.g., 784 for 28x28 MNIST images).
+            number_of_tasks (int): The total number of rotated tasks.
+            seed (int, optional): Random seed for reproducibility (default 1).
+            padding (int): Amount of zero-padding applied to each image.
+            validation_size (int, optional): Number of samples to use for the validation set. Defaults to 5000.
+        """
+        super().__init__()
+ 
+        self.number_of_tasks = number_of_tasks
+        self.seed = seed
+        self.padding = padding
+        self.validation_size = validation_size
+
+        self.input_shape = (28 + 2*self.padding)**2
+
+    def _generate_task_variations(self) -> List[np.ndarray]:
         """
         Generate random permutations for each task.
 
@@ -32,14 +48,12 @@ class PermutedMNIST(ContinualLearningTaskGenerator):
         """
         return [np.random.permutation(self.input_shape) for _ in range(self.number_of_tasks)]
 
-    def prepare_tasks(self, datasets_folder: str, padding: int = 0, validation_size: int = 0):
+    def prepare_tasks(self, datasets_folder: str) -> permuted_mnist.PermutedMNISTList:
         """
         Create a list of PermutedMNIST tasks using the generated permutations.
 
         Args:
             datasets_folder (str): Path to store or load the MNIST dataset.
-            padding (int, optional): Padding to apply to each image. Defaults to 0.
-            validation_size (int, optional): Number of validation samples per task. Defaults to 0.
 
         Returns:
             PermutedMNISTList: A list-like object containing PermutedMNIST tasks.
@@ -49,6 +63,6 @@ class PermutedMNIST(ContinualLearningTaskGenerator):
             permutations=permutations,
             data_path=datasets_folder,
             use_one_hot=True,
-            padding=padding,
-            validation_size=validation_size,
+            padding=self.padding,
+            validation_size=self.validation_size,
         )

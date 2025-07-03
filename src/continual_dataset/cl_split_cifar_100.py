@@ -2,6 +2,7 @@ from hypnettorch.data.special.split_cifar import SplitCIFAR100Data
 
 from continual_dataset.cl_dataset_abc import ContinualLearningTaskGenerator
 
+from typing import List
 
 class SplitCIFAR100(ContinualLearningTaskGenerator):
     """
@@ -42,7 +43,7 @@ class SplitCIFAR100(ContinualLearningTaskGenerator):
         """
         return None
 
-    def prepare_tasks(self, datasets_folder: str):
+    def prepare_tasks(self, datasets_folder: str) -> List[SplitCIFAR100Data]:
         """
         Prepare Split CIFAR-100 tasks.
 

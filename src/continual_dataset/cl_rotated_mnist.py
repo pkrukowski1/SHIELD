@@ -37,12 +37,12 @@ class RotatedMNIST(ContinualLearningTaskGenerator):
         self.padding = padding
         self.validation_size = validation_size
 
-    def _generate_task_variations(self) -> List[List[float]]:
+    def _generate_task_variations(self) -> List[np.ndarray]:
         """
         Generate random rotations (in degrees) for each task.
 
         Returns:
-            List[List[float]]: A list of rotation angles in degrees.
+            List[np.ndarray]: A list of rotation angles in degrees.
         """
 
         np.random.seed(self.seed)
