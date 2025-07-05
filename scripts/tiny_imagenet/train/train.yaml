@@ -7,7 +7,7 @@ parameters:
 
   # Dataset (fixed)
   dataset._target_:
-    value: continual_dataset.SplitMiniImageNet
+    value: continual_dataset.TinyImageNet
   dataset.number_of_tasks:
     value: 40
   dataset.validation_size:
