@@ -7,7 +7,7 @@ parameters:
 
   # Dataset (fixed)
   dataset._target_:
-    value: continual_dataset.PermutedMNIST
+    value: continual_dataset.RotatedMNIST
   dataset.number_of_tasks:
     value: 10
   dataset.validation_size:
