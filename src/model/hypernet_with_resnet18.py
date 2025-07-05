@@ -30,6 +30,7 @@ class HyperNetWithResNet18(CLModuleABC):
                  no_classes_per_task: int,
                  activation_function: nn.Module,
                  hnet_hidden_layers: Tuple[int, ...],
+                 num_feature_maps: Tuple[int,int,int,int],
                  number_of_tasks: int,
                  hnet_embedding_size: int) -> None:
         """
@@ -40,6 +41,8 @@ class HyperNetWithResNet18(CLModuleABC):
             no_classes_per_task (int): Number of output classes per task.
             activation_function (nn.Module): Activation function used in the hypernetwork.
             hnet_hidden_layers (Tuple[int, ...]): Sizes of the hidden layers in the hypernetwork.
+            num_feature_maps (Tuple[int,int,int,int]): Number of feature maps for each ResNet block group,
+              typically corresponding to the number of output channels in each convolutional block.
             number_of_tasks (int): Total number of tasks for continual learning.
             hnet_embedding_size (int): Size of the embedding used to condition the hypernetwork.
         """
@@ -47,17 +50,16 @@ class HyperNetWithResNet18(CLModuleABC):
 
         self.target_network = IntervalResNet18(
                 in_shape=in_shape,
-                use_bias=True,
+                use_bias=False,
                 use_fc_bias=True,
                 bottleneck_blocks=False,
                 num_classes=no_classes_per_task,
-                num_feature_maps=[16, 32, 64, 128],
+                num_feature_maps=num_feature_maps,
                 blocks_per_group=[2, 2, 2, 2],
                 no_weights=True,
                 use_batch_norm=True,
                 projection_shortcut=True,
                 bn_track_stats=False,
-                cutout_mod=False,
             )
 
         self.hnet = HMLP(

@@ -1,6 +1,7 @@
 _target_: model.HyperNetWithResNet18
-in_shape: [3,64,64]
+in_shape: [64,64,3] # Tensorflow format
 no_classes_per_task: 10
+num_feature_maps: [16, 64, 128, 256]
 activation_function:
   _target_: torch.nn.ReLU
 hnet_hidden_layers: [100]

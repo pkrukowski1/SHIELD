@@ -22,7 +22,6 @@ class IntervalResNet18(Classifier):
         blocks_per_group (tuple): Blocks per module, default (4, 4, 4, 4).
         projection_shortcut (bool): Use 1x1 conv for skip connections, default True.
         bottleneck_blocks (bool): Use bottleneck blocks, default False.
-        cutout_mod (bool): Apply cutout, default False.
         no_weights (bool): Weights from hypernetwork, default True.
         use_batch_norm (bool): Apply batch norm, default True.
         bn_track_stats (bool): Track BN stats, default True.
@@ -58,7 +57,6 @@ class IntervalResNet18(Classifier):
         blocks_per_group: tuple = (4, 4, 4, 4),
         projection_shortcut: bool = True,
         bottleneck_blocks: bool = False,
-        cutout_mod: bool = False,
         no_weights: bool = True,
         use_batch_norm: bool = True,
         bn_track_stats: bool = True,
@@ -95,7 +93,6 @@ class IntervalResNet18(Classifier):
         self._in_shape = in_shape
         self._projection_shortcut = projection_shortcut
         self._bottleneck_blocks = bottleneck_blocks
-        self._cutout_mod = cutout_mod
         self._use_bias = use_bias
         self._use_fc_bias = use_fc_bias
         self._no_weights = no_weights

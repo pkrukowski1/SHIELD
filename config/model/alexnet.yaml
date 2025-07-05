@@ -1,5 +1,5 @@
 _target_: model.HyperNetWithAlexNet
-in_shape: [32,32,3]
+in_shape: [32,32,3] # Tensorflow format
 no_classes_per_task: 10
 activation_function:
   _target_: torch.nn.ReLU

@@ -30,7 +30,6 @@ class SplitMiniImageNet(ContinualLearningTaskGenerator):
             number_of_tasks (int): Number of tasks to split the dataset into.
             use_augmentation (bool): Whether to use data augmentation.
             validation_size (int): Number of validation samples per task.
-            _input_shape (int): Input image shape (fixed at 64).
             batch_size (int, optional): Batch size.
         """
         super().__init__()
@@ -39,7 +38,6 @@ class SplitMiniImageNet(ContinualLearningTaskGenerator):
         self.use_augmentation = use_augmentation
         self.validation_size = validation_size
 
-        self._input_shape = 64
         self.batch_size = batch_size
         self.no_classes_per_task = 100 // self.number_of_tasks
 
