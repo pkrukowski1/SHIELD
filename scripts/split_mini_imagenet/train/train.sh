@@ -8,4 +8,4 @@
 
 source scripts/main.sh
 
-run_sweep_and_agent "scripts/split_mini_imagenet/train"
+run_sweep_and_agent "scripts/split_mini_imagenet/train/train"

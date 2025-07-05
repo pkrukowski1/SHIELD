@@ -8,4 +8,4 @@
 
 source scripts/main.sh
 
-run_sweep_and_agent "scripts/split_cifar_100/train"
+run_sweep_and_agent "scripts/split_cifar_100/train/train"

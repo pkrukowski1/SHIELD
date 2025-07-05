@@ -8,4 +8,4 @@
 
 source scripts/main.sh
 
-run_sweep_and_agent "scripts/permuted_mnist/train"
+run_sweep_and_agent "scripts/permuted_mnist/train/train"
