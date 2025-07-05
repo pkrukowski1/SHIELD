@@ -1,0 +1,4 @@
+_target_: continual_dataset.TinyImageNet
+number_of_tasks: 40
+use_augmentation: False
+validation_size: 250

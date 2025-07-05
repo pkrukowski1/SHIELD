@@ -14,12 +14,13 @@ import urllib.request
 from zipfile import ZipFile
 from skimage import io
 from skimage.color import gray2rgb
+from typing import Tuple, List, Callable
 
 import torch
 from hypnettorch.data.dataset import Dataset
 import torchvision.transforms as transforms
 
-class TinyImageNet(Dataset):
+class TinyImageNetData(Dataset):
     _DOWNLOAD_PATH = "http://cs231n.stanford.edu/"
     _DOWNLOAD_FILE = "tiny-imagenet-200.zip"
     _EXTRACTED_FOLDER = "tiny-imagenet-200"
@@ -32,7 +33,7 @@ class TinyImageNet(Dataset):
         validation_size=250,
         seed=1,
         labels=[i for i in range(5)],
-    ):
+    ) -> None:
         super().__init__()
         self.data_path = data_path
         self._labels = labels
@@ -47,7 +48,7 @@ class TinyImageNet(Dataset):
             os.makedirs(self.data_path, exist_ok=True)
 
         self.extracted_data_dir = os.path.join(
-            self.data_path, TinyImageNet._EXTRACTED_FOLDER
+            self.data_path, TinyImageNetData._EXTRACTED_FOLDER
         )
         self._data = dict()
         self._data["tinyimagenet"] = dict()
@@ -58,7 +59,7 @@ class TinyImageNet(Dataset):
 
         if build_from_scratch:
             archive_fn = os.path.join(
-                self.data_path, TinyImageNet._DOWNLOAD_FILE
+                self.data_path, TinyImageNetData._DOWNLOAD_FILE
             )
             print(archive_fn)
 
@@ -67,8 +68,8 @@ class TinyImageNet(Dataset):
                 print("Downloading dataset...")
                 urllib.request.urlretrieve(
                     (
-                        f"{TinyImageNet._DOWNLOAD_PATH}"
-                        f"{TinyImageNet._DOWNLOAD_FILE}"
+                        f"{TinyImageNetData._DOWNLOAD_PATH}"
+                        f"{TinyImageNetData._DOWNLOAD_FILE}"
                     ),
                     archive_fn,
                 )
@@ -124,19 +125,16 @@ class TinyImageNet(Dataset):
         end = time.time()
         print(f"Elapsed time to read dataset: {end-start} sec.")
 
-    def torch_input_transforms(self):
+    def torch_input_transforms(self) -> Tuple[transforms.Compose, transforms.Compose]:
         """
-        Prepare data standarization, and potentially also augmentation,
-        for TinyImageNet images.
+        Returns the input transformations for TinyImageNet images.
 
-        Data augmentation is implemented as in
-        https://github.com/ihaeyong/WSN/blob/main/dataloader/idataset.py.
+        The returned tuple contains:
+            - train_transform: Applies normalization and random augmentations for training.
+            - test_transform: Applies normalization only for evaluation.
 
         Returns:
-        --------
-        A tuple containing **train_transform** that applies standarization
-        and random image transformations and **test_transform** that applies
-        only data standarization.
+            (tuple): (train_transform, test_transform)
         """
         test_transform = transforms.Compose(
             [
@@ -174,24 +172,32 @@ class TinyImageNet(Dataset):
 
     def input_to_torch_tensor(
         self,
-        x,
-        device,
-        mode="inference",
-        force_no_preprocessing=False,
-        sample_ids=None,
-    ):
+        x: torch.Tensor,
+        device: torch.device,
+        mode: str="inference",
+        force_no_preprocessing: bool=False,
+        sample_ids: List=None,
+    ) -> torch.Tensor:
         """
-        Prepare mapping of Numpy arrays to PyTorch tensors.
-        This method overwrites the method from the base class.
-        The input data are preprocessed (data standarization).
+        Converts input data to a PyTorch tensor, applying preprocessing transforms if required.
 
-        Arguments:
-        ----------
-            (....): See docstring of method
-                :meth:`data.dataset.Dataset.input_to_torch_tensor`.
+        This method overrides the base class implementation to provide dataset-specific preprocessing,
+        such as data standardization, before converting the input numpy arrays to PyTorch tensors.
 
-        Returns:
-            (torch.Tensor): The given input ``x`` as PyTorch tensor.
+        Args:
+            x (np.ndarray): Input data to be converted.
+            device (torch.device or str): Device on which the tensor should be allocated.
+            mode (str, optional): Operation mode, either "inference" or "train". Determines which
+                preprocessing transform to apply. Defaults to "inference".
+            force_no_preprocessing (bool, optional): If True, skips preprocessing and calls the base
+                class implementation. Defaults to False.
+            sample_ids (list or None, optional): Optional list of sample IDs, passed to the base class
+                if no preprocessing is applied.
+
+            torch.Tensor: The input data as a PyTorch tensor, preprocessed if applicable.
+
+        Raises:
+            ValueError: If `mode` is not "inference" or "train".
         """
         if not force_no_preprocessing:
             if mode == "inference":
@@ -202,7 +208,7 @@ class TinyImageNet(Dataset):
                 raise ValueError(
                     f"{mode} is not a valid value for the" "argument 'mode'."
                 )
-            return TinyImageNet.torch_preprocess_images(x, device, transform)
+            return TinyImageNetData.torch_preprocess_images(x, device, transform)
 
         else:
             return Dataset.input_to_torch_tensor(
@@ -215,21 +221,25 @@ class TinyImageNet(Dataset):
             )
 
     @staticmethod
-    def torch_preprocess_images(x, device, transform, img_shape=[64, 64, 3]):
+    def torch_preprocess_images(x: torch.Tensor, device: torch.device, 
+                                transform: Callable, img_shape: Tuple[int,int,int]=[64, 64, 3]) -> torch.Tensor:
         """
-        Prepare preprocessing of TinyImageNet images with a selected
-        PyTorch transformation.
+        Preprocesses TinyImageNet images using a specified PyTorch transformation.
 
-        Arguments:
-        ----------
-            x (Numpy array): 2D array containing TinyImageNet images.
-            device (torch.device or int): PyTorch device on which a final
-                                          tensor will be moved
-            transform: (torchvision.transforms): a method of data modification
+        Args:
+            x (np.ndarray): A 2D NumPy array of shape (batch_size, flattened_image), where each row is a flattened TinyImageNet image.
+            device (torch.device or int): The device to which the resulting tensor will be moved.
+            transform (callable): A torchvision transform or any callable that processes a single image.
+            img_shape (list, optional): The shape of each image as [height, width, channels]. Defaults to [64, 64, 3].
 
-        Returns:
-        --------
-            (torch.Tensor): The preprocessed images as PyTorch tensor.
+            torch.Tensor: A tensor containing the preprocessed images, flattened to shape (batch_size, height * width * channels).
+
+        Raises:
+            AssertionError: If the input array does not have exactly 2 dimensions.
+
+        Notes:
+            - The input images are assumed to be normalized in [0, 1] and are rescaled to [0, 255] and cast to uint8.
+            - Each image is reshaped, transformed, and then flattened after channel permutation.
         """
         assert len(x.shape) == 2
         # First dimension is related to batch size and second is related
@@ -243,15 +253,18 @@ class TinyImageNet(Dataset):
         x = x.contiguous().view(-1, np.prod(img_shape))
         return x
 
-    def prepare_training_test_set_with_labels(self, mode="train"):
+    def prepare_training_test_set_with_labels(self, mode: str="train") -> Tuple[np.ndarray,np.ndarray]:
         """
-        Function implemented on the basis of:
+        Loads TinyImageNet images and their labels for either training or testing.
+
+        Based on:
         https://github.com/pytorch/vision/issues/6127#issuecomment-1555049003
 
-        Arguments:
-        ----------
-           *mode* (optional string) 'train' for the training set or 'test'
-                  for the validation set
+        Args:
+            mode (str, optional): 'train' to load the training set, 'test' to load the validation set.
+
+        Returns:
+            Tuple[np.ndarray, np.ndarray]: Tuple of (data, labels), where data is an array of images and labels is an array of corresponding labels.
         """
         assert mode in ["train", "test"]
         data, labels = [], []
@@ -299,12 +312,14 @@ class TinyImageNet(Dataset):
         )
         return data, labels
 
-    def _read_label_names(self):
+    def _read_label_names(self) -> None:
         """
-        Function implemented on the basis of:
+        Loads and assigns human-readable class names for TinyImageNet classes.
+
+        Based on:
         https://github.com/DennisHanyuanXu/Tiny-ImageNet/blob/master/src/data_prep.py
 
-        Set a dictionary with names of consecutive classes of TinyImageNet.
+        Populates a dictionary mapping class indices to their corresponding names.
         """
         class_names = dict()
         loaded_file = open(
@@ -319,7 +334,7 @@ class TinyImageNet(Dataset):
         loaded_file.close()
         self._data["tinyimagenet"]["label_names"] = class_names
 
-    def _prepare_train_val_test_set(self):
+    def _prepare_train_val_test_set(self) -> None:
         """
         Prepares a stratified selection of the training and validation set.
         Also, prepares a final version of the test set and filles keys
@@ -365,21 +380,18 @@ class TinyImageNet(Dataset):
         del self.train_labels
         del self.test_labels
 
-    def _select_val_indices(self, no_of_classes):
+    def _select_val_indices(self, no_of_classes: int) -> Tuple[np.ndarray,np.ndarray]:
         """
-        Prepare a selection of train and validation sets with memory saving!
-        TinyImageNet is a large dataset, therefore solutions need to be
-        memory-efficient.
+        Efficiently select indices for training and validation sets.
+
+        Since TinyImageNet is large, this method is designed to be memory-efficient.
 
         Args:
-        -----
-          *no_of_classes*: (int) number of classes in the dataset
+            no_of_classes (int): Number of classes in the dataset.
 
         Returns:
-        --------
-          *train_indices*: (list) contains indices of elements in the training
-                           set
-          *test_indices*: (list) contains indices of elements in the test set
+            list: Indices for the training set.
+            list: Indices for the validation set.
         """
         # 40 is the number of tasks
         self._no_of_val_samples_per_class = int(
@@ -409,7 +421,7 @@ class TinyImageNet(Dataset):
             val_indices.extend(list(cur_class_val_indices.flatten()))
         return np.array(train_indices), np.array(val_indices)
 
-    def _validity_control(self):
+    def _validity_control(self) -> None:
         """
         Control whether the set was prepared according to the desired hyperparams.
         """
@@ -451,7 +463,7 @@ class TinyImageNet(Dataset):
                 == no_of_train_samples_per_class
             )
 
-    def _translate_labels(self):
+    def _translate_labels(self) -> None:
         """
         Due to the fact that TinyImageNet has 200 classes and a subset of classes
         may be scattered across the space of labels and neural networks may be
@@ -467,17 +479,23 @@ class TinyImageNet(Dataset):
             self.translate_temp_label_to_real_labels[i] = sorted_labels[i]
             self.translate_real_label_to_temp_label[sorted_labels[i]] = i
 
-    def translate_temporary_to_real_label(self):
+    def translate_temporary_to_real_label(self) -> dict:
+        """
+        Returns the mapping from temporary labels to real labels.
+        This method provides access to the attribute `translate_temp_label_to_real_labels`, 
+        which is expected to be a mapping (e.g., dictionary) that translates temporary 
+        labels used internally to their corresponding real labels.
+        Returns:
+            dict: A mapping from temporary labels to real labels.
+        """
+
         return self.translate_temp_label_to_real_labels
 
-    def translate_real_to_temporary_label(self):
+    def translate_real_to_temporary_label(self) -> dict:
+        """
+        Returns a dictionary mapping real (original) class labels to temporary labels.
+        This method provides access to the internal mapping between the actual class labels used in the dataset and their corresponding temporary labels, which may be used for tasks such as relabeling, remapping, or continual learning scenarios.
+        Returns:
+            dict: A dictionary where keys are real class labels and values are their corresponding temporary labels.
+        """
         return self.translate_real_label_to_temp_label
-
-
-if __name__ == "__main__":
-    tinyimagenet = TinyImageNet(
-        data_path="./Data",
-        validation_size=250,
-        use_one_hot=True,
-        labels=[1, 5, 13, 21, 36],
-    )

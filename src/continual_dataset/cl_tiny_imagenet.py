@@ -1,7 +1,7 @@
 import numpy as np
 from typing import List
 
-from continual_dataset.dataset.tiny_imagenet import TinyImageNet
+from continual_dataset.dataset.tiny_imagenet import TinyImageNetData
 from  continual_dataset.cl_dataset_abc import ContinualLearningTaskGenerator
 
 
@@ -15,52 +15,66 @@ class TinyImageNet(ContinualLearningTaskGenerator):
     def __init__(
         self,
         number_of_tasks: int = 40,
-        seed: int = 42
-    ):
+        validation_size: int = 250,
+        use_augmentation: bool = False
+    ) -> None:
         """
         Initialize the TinyImageNet.
 
         Args:
             number_of_tasks (int): Total number of tasks (default 40).
-            seed (int): Random seed for reproducibility (default 42).
+            validation_size (int): Number of samples in a validation set.
+            use_augmentation (bool): Flag to indicate wheter data augmentation should be used.
         """
-        super().__init__(number_of_tasks=number_of_tasks, seed=seed)
+        super().__init__()
+
+        self.number_of_tasks = number_of_tasks
+        self.validation_size = validation_size
+        self.use_augmentation = use_augmentation
         self.no_classes_per_task = 200 // number_of_tasks
 
-    def _generate_task_variations(self) -> List[np.ndarray]:
+    def _generate_task_variations(self) -> None:
         """
-        Generate a class permutation split into tasks.
+        Not used in this generator, as split is handled internally.
 
         Returns:
-            List[np.ndarray]: Each element contains 5 class indices for a task.
+            None
         """
-        rng = np.random.default_rng(self.seed)
-        class_permutation = rng.permutation(200)
-        return [class_permutation[i:i + self.no_classes_per_task] 
-                for i in range(0, 5 * self.number_of_tasks, self.no_classes_per_task)]
+        
+        return None
 
-    def prepare_tasks(self, datasets_folder: str, padding: int = 0, validation_size: int = 250):
+    def prepare_tasks(self, datasets_folder: str) -> List[TinyImageNetData]:
         """
-        Prepare TinyImageNet tasks according to the WSN setup.
-
+        Creates and returns a list of TinyImageNet dataset handlers, each corresponding to a specific task configuration.
+        
         Args:
-            datasets_folder (str): Directory where the dataset is or will be stored.
-            padding (int): Unused for TinyImageNet but kept for compatibility.
-            validation_size (int): Number of validation samples per task (default 250).
+            datasets_folder (str): Path to the directory containing or intended to contain the TinyImageNet dataset.
 
         Returns:
-            List[TinyImageNet]: List of TinyImageNet dataset handlers for each task.
+            List[TinyImageNetData]: A list of TinyImageNet dataset handler instances, one for each generated task configuration.
+
+        Notes:
+            - The method generates different task configurations using internal logic and prepares a TinyImageNet handler for each.
+            - Prints the order of class labels for each task for transparency and debugging.
+            - The `validation_size` and other relevant parameters are taken from the instance attributes.
         """
-        task_labels = self._generate_task_variations()
+        seed = 1
+        rng = np.random.default_rng(seed)
+        class_permutation = rng.permutation(200)
+
+        task_labels = [class_permutation[i:i + self.no_classes_per_task] 
+                for i in range(0, 5 * self.number_of_tasks, self.no_classes_per_task)]
         handlers = []
 
         for labels in task_labels:
             print(f"Order of classes in the current task: {labels}")
             handlers.append(
-                TinyImageNet(
+                TinyImageNetData(
                     data_path=datasets_folder,
-                    validation_size=validation_size,
                     use_one_hot=True,
+                    use_data_augmentation=self.use_augmentation,
+                    validation_size=self.validation_size,
+                    seed=seed,
                     labels=labels,
                 )
             )
