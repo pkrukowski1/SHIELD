@@ -1,0 +1,75 @@
+method: grid
+metric:
+  name: avg_acc
+  goal: maximize
+
+parameters:
+
+  # Dataset (fixed)
+  dataset._target_:
+    value: continual_dataset.SplitMiniImageNet
+  dataset.number_of_tasks:
+    value: 40
+  dataset.validation_size:
+    value: 250
+  dataset.use_augmentation: 
+    value: False
+
+  # Experiment setup
+  exp.seed:
+    value: 42
+  exp.batch_size:
+    values: [16, 32]
+  exp.no_epochs:
+    value: 10
+  exp.no_iterations:
+    value:
+
+  # Fabric setup
+  fabric.accelerator:
+    value: gpu
+
+  # Method (sweep these)
+  method.lr:
+    value: 0.001
+  method.beta:
+    values: [0.01, 0.05, 0.1]
+  method.mixup_alpha:
+    values: [0.0, 0.01, 0.1, 0.2, 0.3, 0.4]
+  method.epsilon:
+    values: [0.00784313725, 0.0156862745, 0.00392156862]
+  method.use_lr_scheduler:
+    value: True
+  method._target_:
+    value: method.SHIELD
+
+  # Model
+  model._target_:
+    value: model.HyperNetWithResNet18
+  model.in_shape:
+    value: [64,64,3]
+  model.no_classes_per_task:
+    value: 5
+  model.activation_function._target_:
+    value: torch.nn.ReLU
+  model.hnet_hidden_layers:
+    values: [[100, 50], [100], [200]]
+  model.hnet_embedding_size:
+    values: [96, 128, 256]
+  model.num_feature_maps: 
+    value: [16, 64, 128, 256]
+
+
+  # W&B logging
+  wandb.entity:
+    value: ${oc.env:WANDB_ENTITY}
+  wandb.project:
+    value: ${oc.env:WANDB_PROJECT}
+
+command:
+  - ${env}
+  - python
+  - src/main.py
+  - --config-name
+  - train.yaml
+  - ${args_no_hyphens}
