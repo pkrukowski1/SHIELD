@@ -7,23 +7,25 @@ parameters:
 
   # Dataset (fixed)
   dataset._target_:
-    value: continual_dataset.PermutedMNIST
+    value: continual_dataset.SplitCIFAR100
   dataset.number_of_tasks:
     value: 10
   dataset.validation_size:
-    value: 5000
-  dataset.padding:
-    value: 2
+    value: 500
+  dataset.use_augmentation: 
+    value: False
+  dataset.use_cutout: 
+    value: False
 
   # Experiment setup
   exp.seed:
     value: 42
   exp.batch_size:
-    values: [64,128]
+    values: [32,64]
   exp.no_epochs:
-    value:
+    value: 200
   exp.no_iterations:
-    value: 5000
+    value:
 
   # Fabric setup
   fabric.accelerator:
@@ -33,31 +35,32 @@ parameters:
   method.lr:
     value: 0.001
   method.beta:
-    values: [0.0005, 0.001, 0.005, 0.01, 0.05]
+    values: [0.01, 0.01, 0.05]
   method.mixup_alpha:
     values: [0.01, 0.1, 0.2, 0.3, 0.4, 0.5]
   method.epsilon:
-    values: [0.00784313725, 0.0784313725, 0.09803921568, 0.01]
+    values: [0.00784313725, 0.0156862745, 0.005, 0.01]
   method.use_lr_scheduler:
-    value: False
+    value: True
   method._target_:
     value: method.SHIELD
 
   # Model
   model._target_:
-    value: model.HyperNetWithMLP
+    value: model.HyperNetWithResNet18
   model.in_shape:
-    value: 1024
+    value: [64,64,3]
   model.no_classes_per_task:
     value: 10
   model.activation_function._target_:
     value: torch.nn.ReLU
   model.hnet_hidden_layers:
-    values: [[100, 100], [100, 50], [200, 50]]
-  model.target_hidden_layers:
-    value: [256, 256]
+    values: [[200, 50], [100, 50], [100, 100], [100], [200]]
   model.hnet_embedding_size:
-    values: [24, 48, 96]
+    values: [128, 256, 512]
+  model.num_feature_maps: 
+    value: [16, 64, 128, 256]
+
 
   # W&B logging
   wandb.entity:

@@ -1,5 +1,4 @@
 _target_: continual_dataset.PermutedMNIST
 number_of_tasks: 10
 validation_size: 5000
-seed: 1
 padding: 2

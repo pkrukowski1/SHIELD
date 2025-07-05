@@ -12,8 +12,6 @@ parameters:
     value: 10
   dataset.validation_size:
     value: 5000
-  dataset.seed:
-    value: 1
   dataset.padding:
     value: 2
 

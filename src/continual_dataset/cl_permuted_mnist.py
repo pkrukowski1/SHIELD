@@ -13,13 +13,12 @@ class PermutedMNIST(ContinualLearningTaskGenerator):
     which helps simulate different tasks in a continual learning setup.
     """
 
-    def __init__(self, number_of_tasks: int, seed: int = 1, padding: int = 2, validation_size: int = 5000) -> None:
+    def __init__(self, number_of_tasks: int, padding: int = 2, validation_size: int = 5000) -> None:
         """
         Initialize the PermutedMNISTTaskGenerator.
 
         Args:
             number_of_tasks (int, optional): The total number of rotated tasks.
-            seed (int, optional): Random seed for reproducibility. Defaults to 1.
             padding (int, optional): Amount of zero-padding to apply to each image. Defaults to 2.
             validation_size (int, optional): Number of samples to use for the validation set. Defaults to 5000.
 
@@ -33,7 +32,7 @@ class PermutedMNIST(ContinualLearningTaskGenerator):
         super().__init__()
  
         self.number_of_tasks = number_of_tasks
-        self.seed = seed
+        self.seed = 1
         self.padding = padding
         self.validation_size = validation_size
 
