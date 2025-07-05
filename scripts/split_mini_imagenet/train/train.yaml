@@ -7,21 +7,19 @@ parameters:
 
   # Dataset (fixed)
   dataset._target_:
-    value: continual_dataset.SplitCIFAR100
+    value: continual_dataset.SplitMiniImageNet
   dataset.number_of_tasks:
     value: 10
   dataset.validation_size:
-    value: 500
+    value: 2000
   dataset.use_augmentation: 
-    value: False
-  dataset.use_cutout: 
     value: False
 
   # Experiment setup
   exp.seed:
     value: 42
   exp.batch_size:
-    values: [32,64]
+    value: 32
   exp.no_epochs:
     value: 200
   exp.no_iterations:
@@ -35,11 +33,11 @@ parameters:
   method.lr:
     value: 0.001
   method.beta:
-    values: [0.01, 0.05, 0.1]
+    values: [0.01, 0.05]
   method.mixup_alpha:
-    values: [0.01, 0.1, 0.2, 0.3, 0.4, 0.5]
+    values: [0.0, 0.01, 0.1, 0.2, 0.3, 0.4]
   method.epsilon:
-    values: [0.00784313725, 0.0156862745, 0.005, 0.01]
+    values: [0.00784313725, 0.0156862745, 0.00392156862]
   method.use_lr_scheduler:
     value: True
   method._target_:
@@ -47,17 +45,17 @@ parameters:
 
   # Model
   model._target_:
-    value: model.HyperNetWithAlexNet
+    value: model.HyperNetWithResNet18
   model.in_shape:
-    value: [32,32,3]
+    value: [64,64,3]
   model.no_classes_per_task:
     value: 10
   model.activation_function._target_:
     value: torch.nn.ReLU
   model.hnet_hidden_layers:
-    values: [[200, 50], [100, 50], [100, 100], [100], [200]]
+    values: [[100, 50], [100], [200]]
   model.hnet_embedding_size:
-    values: [128, 256, 512]
+    values: [96, 128, 256]
   model.num_feature_maps: 
     value: [16, 64, 128, 256]
 
