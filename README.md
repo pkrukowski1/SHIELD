@@ -63,8 +63,8 @@ The architecture and training loop are designed to be **modular, scalable**, and
 
 ### 📈 Datasets
 
-- **Permuted MNIST** – 10 tasks, shuffled pixels per task  
-- **Rotated MNIST** – 12 tasks, each rotated by 15°  
+- **Permuted MNIST** – 10 tasks x 10 classes
+- **Rotated MNIST** – 10 tasks x 10 classes
 - **Split CIFAR-100** – 10 tasks × 10 classes  
 - **Split miniImageNet** – 10 tasks × 10 classes  
 - **TinyImageNet** – 40 tasks × 5 classes
