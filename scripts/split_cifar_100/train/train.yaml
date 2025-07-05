@@ -47,9 +47,9 @@ parameters:
 
   # Model
   model._target_:
-    value: model.HyperNetWithResNet18
+    value: model.HyperNetWithAlexNet
   model.in_shape:
-    value: [64,64,3]
+    value: [32,32,3]
   model.no_classes_per_task:
     value: 10
   model.activation_function._target_:
