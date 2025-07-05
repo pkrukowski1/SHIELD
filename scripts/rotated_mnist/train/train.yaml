@@ -70,5 +70,5 @@ command:
   - python
   - src/main.py
   - --config-name
-  - train.yaml
+  - shield.yaml
   - ${args_no_hyphens}
