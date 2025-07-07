@@ -1,6 +1,6 @@
 defaults:
   - _self_
-  - dataset: tiny_imagenet
+  - dataset: split_mini_imagenet
   - model: resnet18
   - method: shield
 

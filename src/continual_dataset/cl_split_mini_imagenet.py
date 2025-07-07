@@ -15,6 +15,7 @@ class SplitMiniImageNet(ContinualLearningTaskGenerator):
         number_of_tasks: int,
         use_augmentation: bool = False,
         validation_size: int = 2000,
+        train_only_on_first_ten_tasks: bool = True,
         batch_size: int = 16
     ) -> None:
         """
@@ -24,12 +25,16 @@ class SplitMiniImageNet(ContinualLearningTaskGenerator):
             number_of_tasks (int): Number of tasks to split the dataset into.
             use_augmentation (bool, optional): Whether to use data augmentation. Defaults to False.
             validation_size (int, optional): Number of validation samples per task. Defaults to 2000.
+            train_only_on_first_ten_tasks (bool, optional): If true, a training is interrupted after
+                learning first ten tasks as in https://arxiv.org/pdf/2402.11196
             batch_size (int, optional): Batch size.
 
         Attributes:
             number_of_tasks (int): Number of tasks to split the dataset into.
             use_augmentation (bool): Whether to use data augmentation.
             validation_size (int): Number of validation samples per task.
+            train_only_on_first_ten_tasks (bool, optional): If true, a training is interrupted after
+                learning first ten tasks as in https://arxiv.org/pdf/2402.11196
             batch_size (int, optional): Batch size.
         """
         super().__init__()
@@ -37,6 +42,7 @@ class SplitMiniImageNet(ContinualLearningTaskGenerator):
         self.number_of_tasks = number_of_tasks
         self.use_augmentation = use_augmentation
         self.validation_size = validation_size
+        self.train_only_on_first_ten_tasks = train_only_on_first_ten_tasks
 
         self.batch_size = batch_size
         self.no_classes_per_task = 100 // self.number_of_tasks
@@ -63,6 +69,8 @@ class SplitMiniImageNet(ContinualLearningTaskGenerator):
         """
         handlers = []
         for i in range(self.number_of_tasks):
+            if self.train_only_on_first_ten_tasks and i == 10:
+                break
             no_validation_samples_per_class = self.validation_size // self.no_classes_per_task
             handlers.append(
                 SplitMiniImageNetData(
