@@ -1,0 +1,3 @@
+_target_: continual_dataset.SplitCUB200
+number_of_tasks: 20
+validation_size: 0

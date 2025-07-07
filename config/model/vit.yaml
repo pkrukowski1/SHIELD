@@ -1,0 +1,7 @@
+_target_: model.HyperNetWithPretrainedViT
+no_classes_per_task: 10
+activation_function:
+  _target_: torch.nn.ReLU
+hnet_hidden_layers: [100,100]
+target_hidden_layers: [256, 256]
+hnet_embedding_size: 24
