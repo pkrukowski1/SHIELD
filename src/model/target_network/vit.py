@@ -75,6 +75,10 @@ class IntervalViT(nn.Module, MainNetInterface):
         self.feature_extractor = timm.create_model(model_name="vit_base_patch16_224", pretrained=True)
         n_in = self.feature_extractor.head.in_features
 
+        # Freeze all parameters of ViT
+        for param in self.feature_extractor.parameters():
+            param.requires_grad = False
+
         hidden_layers = list(hidden_layers)
 
         self._a_fun = activation_fn
@@ -168,7 +172,7 @@ class IntervalViT(nn.Module, MainNetInterface):
                 w_weights.append(p)
 
         x = x.view(-1, 3, 224, 224)
-        
+
         # Forward through ViT
         tokens = self.feature_extractor.forward_features(x)  # shape: (B, 197, 768)
         cls_token = tokens[:, 0]                             # shape: (B, 768)
