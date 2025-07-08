@@ -45,48 +45,51 @@ def experiment(config: DictConfig) -> None:
     dataframe = pd.DataFrame(columns=["after_learning_of_task", "tested_task", "accuracy"])
 
     all_accuracies = []
- 
-    for task_id in range(number_of_tasks):
+    
+    try:
+        for task_id in range(number_of_tasks):
 
-        method.setup_task(task_id)
+            method.setup_task(task_id)
 
-        best_hnet, best_target_network = train_single_task(
-            method=method,
-            task_id=task_id,
-            task_datasets=task_datasets,
-            config=config,
-            device=fabric.device
-        )
+            best_hnet, best_target_network = train_single_task(
+                method=method,
+                task_id=task_id,
+                task_datasets=task_datasets,
+                config=config,
+                device=fabric.device
+            )
 
-        dataframe = evaluate_previous_tasks(
-            hnet=best_hnet,
-            target_network=best_target_network,
-            dataframe=dataframe,
-            task_id=task_id,
-            task_datasets=task_datasets,
-            epsilon=method.base_epsilon,
-            device=fabric.device
-        )
+            dataframe = evaluate_previous_tasks(
+                hnet=best_hnet,
+                target_network=best_target_network,
+                dataframe=dataframe,
+                task_id=task_id,
+                task_datasets=task_datasets,
+                epsilon=method.base_epsilon,
+                device=fabric.device
+            )
 
-        all_accuracies.append(
-            dataframe[dataframe["after_learning_of_task"] == task_id]["accuracy"].tolist()
-        )
+            all_accuracies.append(
+                dataframe[dataframe["after_learning_of_task"] == task_id]["accuracy"].tolist()
+            )
 
-        dataframe = dataframe.astype({"after_learning_of_task": "int", "tested_task": "int"})
-        dataframe.to_csv(f'{config.exp.log_dir}/results.csv', sep=";")
+            dataframe = dataframe.astype({"after_learning_of_task": "int", "tested_task": "int"})
+            dataframe.to_csv(f'{config.exp.log_dir}/results.csv', sep=";")
 
-        if wandb.run:
-            df_task = dataframe[dataframe["after_learning_of_task"] == task_id]
-            wandb.log({
-                f"acc_after_task_{task_id}": wandb.Table(columns=df_task.columns.tolist(), data=df_task.values.tolist())
-            })
+            if wandb.run:
+                df_task = dataframe[dataframe["after_learning_of_task"] == task_id]
+                wandb.log({
+                    f"acc_after_task_{task_id}": wandb.Table(columns=df_task.columns.tolist(), data=df_task.values.tolist())
+                })
 
-        # Log average accuracy after learning up to task_id
-        accs_up_to_now = dataframe[dataframe["after_learning_of_task"] == task_id]["accuracy"]
-        avg_acc = accs_up_to_now.mean()
-        log.info(f"Average accuracy after task {task_id}: {avg_acc:.2f}%")
-        if wandb.run:
-            wandb.log({f"avg_accuracy_up_to_task_{task_id}": avg_acc})
+            # Log average accuracy after learning up to task_id
+            accs_up_to_now = dataframe[dataframe["after_learning_of_task"] == task_id]["accuracy"]
+            avg_acc = accs_up_to_now.mean()
+            log.info(f"Average accuracy after task {task_id}: {avg_acc:.2f}%")
+            if wandb.run:
+                wandb.log({f"avg_accuracy_up_to_task_{task_id}": avg_acc})
+    except IndexError:
+        pass
 
 
     write_pickle_file(f'{config.exp.log_dir}/hnet', method.module.hnet.weights)
@@ -199,7 +202,7 @@ def train_single_task(method: MethodABC, task_id: int, task_datasets: Iterable, 
         loss, worst_case_prediction = method.forward(tensor_input, gt_output, task_id)
         loss = loss.mean()
         method.backward(loss)
-
+        
         if should_log(iteration, total_no_iterations, no_epochs, no_iterations_per_epoch):
             maybe_log_epoch(iteration, no_epochs, no_iterations_per_epoch)
 
