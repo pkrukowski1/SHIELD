@@ -19,9 +19,9 @@ parameters:
   exp.batch_size:
     value: 32
   exp.no_epochs:
-    value:
+    value: 500
   exp.no_iterations:
-    value: 5000
+    value:
 
   # Fabric setup
   fabric.accelerator:
@@ -46,8 +46,8 @@ parameters:
     value: model.HyperNetWithPretrainedViT
   model.no_classes_per_task: 
     value: 10
-  model.activation_function:
-    _target_: torch.nn.ReLU
+  model.activation_function._target_:
+   value: torch.nn.ReLU
   model.hnet_hidden_layers: 
     values: [[100], [100,100], [200]]
   model.target_hidden_layers:

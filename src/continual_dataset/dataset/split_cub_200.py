@@ -693,7 +693,7 @@ class CUB2002011(LargeImgDataset):
         Generally, the function is required to be comaptible with the rest of
         CL dataset handlers.
         """
-        return torch.Tensor(y)
+        return torch.Tensor(y).to(device)
         
 
 class SplitCUB200Data(CUB2002011):
