@@ -344,7 +344,7 @@ class IntervalResNet18(Classifier):
         return self._has_bias
 
     def forward(self, x: torch.Tensor, epsilon: float, weights: List[torch.Tensor],
-                distilled_params=None, condition: int=None, device: str="cpu") -> Tuple[torch.Tensor, torch.Tensor]:
+                distilled_params=None, condition: int=None) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Perform a forward pass through the interval-based ResNet-18 model.
         This method computes the interval bounds (mu, eps) for the input tensor `x` under perturbation of size `epsilon`,
@@ -358,7 +358,6 @@ class IntervalResNet18(Classifier):
                 Required if `self._distill_bn_stats` is True.
             condition (Optional[int or dict], optional): Condition for batch norm or context-mod selection. Can be an int or a dict
                 with keys 'bn_stats_id' and/or 'cmod_ckpt_id'.
-            device (str, optional): Device to perform computation on. Defaults to "cpu".
         Returns:
             Tuple[torch.Tensor, torch.Tensor]: Tuple of (mu, eps), where `mu` is the center of the output interval and `eps`
                 is the radius (uncertainty) of the output interval.
@@ -379,6 +378,8 @@ class IntervalResNet18(Classifier):
             raise Exception("Weights must be provided for no_weights networks.")
 
         assert weights is not None, "Weights must not be None"
+
+        device = x.device
 
         n_cm = self._num_context_mod_shapes()
         int_weights, cm_weights = None, None
