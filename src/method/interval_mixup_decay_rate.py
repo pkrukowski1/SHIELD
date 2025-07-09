@@ -122,7 +122,7 @@ class MixupEpsilonDecayRate:
         if alpha <= 0.5:
             return const * math.log(alpha+0.5) 
         elif alpha > 0.5:
-            return const * math.log(3/2 - alpha)
+            return const * math.log(3/2-alpha)
         
     def cos(self, alpha: float) -> float:
         """
