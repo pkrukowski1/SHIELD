@@ -38,6 +38,8 @@ parameters:
     values: [1.0, 10.0, 100.0, 1000.0]
   method.use_lr_scheduler:
     value: False
+  method.mixup_epsilon_decay:
+    value: linear
   method._target_:
     value: method.SHIELD
 

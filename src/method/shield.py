@@ -5,6 +5,7 @@ import hypnettorch.utils.hnet_regularizer as hreg
 from method.method_abc import MethodABC
 from method.utils import mixup_data
 from model.model_abc import CLModuleABC
+from method.interval_mixup_decay_rate import MixupEpsilonDecayRate
 
 from typing import Tuple
 from copy import deepcopy
@@ -25,10 +26,12 @@ class SHIELD(MethodABC):
         beta (float): Regularization strength for previous tasks.
         mixup_alpha (float): Alpha parameter for the mixup data augmentation.
         no_iterations (int): Total number of training iterations per task.
+        mixup_epsilon_decay (str): Decaying rate of an epsilon in Interval MixUp.
     Attributes:
         beta (float): Regularization strength for previous tasks.
         mixup_alpha (float): Alpha parameter for the mixup data augmentation.
         no_iterations (int): Total number of training iterations per task.
+        mixup_epsilon_decay (str): Decaying rate of an epsilon in Interval MixUp.
         base_epsilon (float): Base perturbation value.
         current_epsilon (float): Current perturbation value, scheduled during training.
         current_kappa (float): Current kappa value, scheduled during training.
@@ -55,6 +58,7 @@ class SHIELD(MethodABC):
                  use_lr_scheduler: bool,
                  beta: float,
                  mixup_alpha: float,
+                 mixup_epsilon_decay: str = "linear"
                  ):
         super().__init__(module=module, lr=lr, use_lr_scheduler=use_lr_scheduler)
 
@@ -69,6 +73,8 @@ class SHIELD(MethodABC):
         self.regularization_targets = None
         self.criterion = nn.CrossEntropyLoss()
         self.current_iteration = 0
+
+        self.mixup_epsilon_decay_fnc = MixupEpsilonDecayRate(mixup_epsilon_decay)
 
     def set_no_iterations(self, value: int) -> None:
         self.no_iterations = value
@@ -148,7 +154,7 @@ class SHIELD(MethodABC):
 
         # Apply mixup augmentation
         mixup_tensor_input, y_a, y_b, lam = mixup_data(x, y, alpha=self.mixup_alpha)
-        eps_transformed = abs(2*lam-1.0) * self.current_epsilon
+        eps_transformed = self.mixup_epsilon_decay_fnc(lam) * self.current_epsilon
 
         # Calculate predictions
         prediction, eps_prediction = self.module.forward(
