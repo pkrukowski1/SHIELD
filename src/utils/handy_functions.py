@@ -2,8 +2,15 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from typing import Union
+from copy import deepcopy
 
 import torch
+
+from hydra.utils import instantiate
+from omegaconf import DictConfig
+
+from model.model_abc import CLModuleABC
+from method.method_abc import MethodABC
 
 
 def plot_heatmap(load_path: str) -> None:
@@ -50,3 +57,13 @@ def safe_none(val: Union[None,str]) -> None:
     Converts a string object to None.
     """
     return None if val in ["None", "", None] else val
+
+def make_deepcopy(method: MethodABC, config: DictConfig, device: torch.device) -> CLModuleABC:
+    """
+    Returns custom deepcopy of the module.
+    """
+    best_module = instantiate(config.model, number_of_tasks=config.dataset.number_of_tasks)
+    best_module.load_state_dict(deepcopy(method.module.state_dict()))
+    best_module = best_module.to(device)
+
+    return best_module

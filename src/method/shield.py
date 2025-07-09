@@ -115,8 +115,6 @@ class SHIELD(MethodABC):
         """
 
         if task_id > 0:
-            self.module.hnet.conditional_params[task_id-1].requires_grad_(False)
-
             self.regularization_targets = hreg.get_current_targets(
                 task_id, deepcopy(self.module.hnet)
             )
@@ -186,9 +184,12 @@ class SHIELD(MethodABC):
             )
 
         loss = loss_current_task + self.beta * loss_regularization / max(1, task_id)
-        
-        return loss, z
-    
+
+        # z_eval — used only for tracking worst-case predictions
+        z_eval = torch.where((nn.functional.one_hot(y, prediction.size(-1))).bool(), z_lower, z_upper)
+
+        return loss, z_eval
+            
     def mixup_criterion(self, criterion: nn.Module, pred: torch.Tensor, 
                     y_a: torch.Tensor, y_b: torch.Tensor, lam: float) -> torch.Tensor:
         """Computes the mixup loss."""
