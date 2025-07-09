@@ -1,6 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+from typing import Union
 
 import torch
 
@@ -43,3 +44,9 @@ def write_pickle_file(filename: str, object_to_save: torch.nn.Module):
     """
 
     torch.save(object_to_save.state_dict(), f"{filename}.pt")
+
+def safe_none(val: Union[None,str]) -> None:
+    """
+    Converts a string object to None.
+    """
+    return None if val in ["None", "", None] else val

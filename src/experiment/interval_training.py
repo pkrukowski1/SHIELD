@@ -13,7 +13,7 @@ import logging
 import torch
 
 from utils.fabric import setup_fabric
-from utils.handy_functions import write_pickle_file, plot_heatmap
+from utils.handy_functions import write_pickle_file, plot_heatmap, safe_none
 from method.method_abc import MethodABC
 from model.model_abc import CLModuleABC
 
@@ -164,8 +164,8 @@ def train_single_task(method: MethodABC, task_id: int, task_datasets: Iterable, 
     """
     Train the model for a single task.
     """
-    no_iterations = config.exp.no_iterations
-    no_epochs = config.exp.no_epochs
+    no_iterations = safe_none(config.exp.no_iterations)
+    no_epochs = safe_none(config.exp.no_epochs)
     batch_size = config.exp.batch_size
 
     assert no_iterations is not None or no_epochs is not None, "Arguments `no_iterations` and `no_epochs` cannot both be `None`"
