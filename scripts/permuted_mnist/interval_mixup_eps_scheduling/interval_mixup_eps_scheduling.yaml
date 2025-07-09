@@ -1,0 +1,76 @@
+method: grid
+metric:
+  name: avg_acc
+  goal: maximize
+
+parameters:
+
+  # Dataset (fixed)
+  dataset._target_:
+    value: continual_dataset.PermutedMNIST
+  dataset.number_of_tasks:
+    value: 10
+  dataset.validation_size:
+    value: 5000
+  dataset.padding:
+    value: 2
+
+  # Experiment setup
+  exp.seed:
+    value: 1
+  exp.batch_size:
+    value: 128
+  exp.no_epochs:
+    value:
+  exp.no_iterations:
+    value: 5000
+
+  # Fabric setup
+  fabric.accelerator:
+    value: gpu
+
+  # Method (sweep these)
+  method.lr:
+    value: 0.001
+  method.beta:
+    value: 0.001
+  method.mixup_alpha:
+    value: 0.1
+  method.epsilon:
+    value: 0.01
+  method.use_lr_scheduler:
+    value: False
+  method.mixup_epsilon_decay:
+    values: [linear, quadratic, log, cos]
+  method._target_:
+    value: method.SHIELD
+
+  # Model
+  model._target_:
+    value: model.HyperNetWithMLP
+  model.in_shape:
+    value: 1024
+  model.no_classes_per_task:
+    value: 10
+  model.activation_function._target_:
+    value: torch.nn.ReLU
+  model.hnet_hidden_layers:
+    value: [100, 100]
+  model.target_hidden_layers:
+    value: [256, 256]
+  model.hnet_embedding_size:
+    value: 24
+
+  # W&B logging
+  wandb.entity:
+    value: ${oc.env:WANDB_ENTITY}
+  wandb.project:
+    value: ${oc.env:WANDB_PROJECT}
+
+command:
+  - ${env}
+  - python
+  - src/main.py
+  - --config-name
+  - shield.yaml
+  - ${args_no_hyphens}
