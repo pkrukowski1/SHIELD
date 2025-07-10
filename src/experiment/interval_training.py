@@ -191,7 +191,7 @@ def train_single_task(method: MethodABC, task_id: int, task_datasets: Iterable, 
     log.info(f"Train the {task_id}-th task")
 
     for iteration in range(total_no_iterations):
-        method.module.train()
+        method.module.hnet.train()
 
         current_batch = current_dataset_instance.next_train_batch(batch_size)
 
@@ -246,7 +246,7 @@ def calculate_accuracy(data, module: CLModuleABC, evaluation_dataset: str,
     """
     Calculates the classification accuracy of a neural network model on a specified evaluation dataset.
     """
-    module.eval()
+    module.hnet.eval()
 
     if evaluation_dataset == "validation":
         input_data = data.get_val_inputs()
