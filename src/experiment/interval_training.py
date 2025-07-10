@@ -60,6 +60,7 @@ def experiment(config: DictConfig) -> None:
             )
            
             method.module.load_state_dict(deepcopy(best_module.state_dict()))
+            method.detach_embedding(task_id)
 
             dataframe = evaluate_previous_tasks(
                 module=best_module,
