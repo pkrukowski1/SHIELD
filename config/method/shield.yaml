@@ -4,4 +4,4 @@ use_lr_scheduler: True
 beta: 0.01
 mixup_alpha: 0.1
 epsilon: 0.05
-mixup_epsilon_decay: log # linear, quadratic, log, cos
+mixup_epsilon_decay: linear # linear, quadratic, log, cos

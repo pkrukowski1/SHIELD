@@ -5,6 +5,13 @@ metric:
 
 parameters:
 
+  dataset:
+    value: permuted_mnist
+  method:
+    value: shield
+  model:
+    value: mlp
+
   # Dataset (fixed)
   dataset._target_:
     value: continual_dataset.PermutedMNIST

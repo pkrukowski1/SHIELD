@@ -5,6 +5,13 @@ metric:
 
 parameters:
 
+  dataset:
+    value: split_cifar_100
+  method:
+    value: shield
+  model:
+    value: alexnet
+
   # Dataset (fixed)
   dataset._target_:
     value: continual_dataset.SplitCIFAR100
@@ -25,7 +32,7 @@ parameters:
   exp.no_epochs:
     value: 200
   exp.no_iterations:
-    value:
+    value: null
 
   # Fabric setup
   fabric.accelerator:
@@ -60,9 +67,6 @@ parameters:
     values: [[200, 50], [100, 50], [100, 100], [100], [200]]
   model.hnet_embedding_size:
     values: [128, 256, 512]
-  model.num_feature_maps: 
-    value: [16, 64, 128, 256]
-
 
   # W&B logging
   wandb.entity:

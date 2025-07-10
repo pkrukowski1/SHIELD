@@ -5,6 +5,13 @@ metric:
 
 parameters:
 
+  dataset:
+    value: split_cub_200
+  method:
+    value: shield
+  model:
+    value: vit
+
   # Dataset (fixed)
   dataset._target_:
     value: continual_dataset.SplitCUB200

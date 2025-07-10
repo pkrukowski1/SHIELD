@@ -5,6 +5,13 @@ metric:
 
 parameters:
 
+  dataset:
+    value: tiny_imagenet
+  method:
+    value: shield
+  model:
+    value: resnet18
+
   # Dataset (fixed)
   dataset._target_:
     value: continual_dataset.TinyImageNet
