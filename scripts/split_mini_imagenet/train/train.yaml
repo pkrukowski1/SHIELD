@@ -30,7 +30,7 @@ parameters:
   exp.batch_size:
     value: 16
   exp.no_epochs:
-    value: 200
+    value: 50
   exp.no_iterations:
     value:
 
