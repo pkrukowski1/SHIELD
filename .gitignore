@@ -6,6 +6,7 @@ venv
 cache
 data
 outputs
+saved_models
 
 .env
 *.log
