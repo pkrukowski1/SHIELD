@@ -22,7 +22,6 @@ class HyperNetWithResNet18(CLModuleABC):
             from the hypernetwork.
         hnet (HMLP): Hypernetwork that generates the weights of the target network 
             conditioned on the task.
-        parameters (iterable): The parameters of the hypernetwork.
     """
 
     def __init__(self, 
@@ -70,8 +69,6 @@ class HyperNetWithResNet18(CLModuleABC):
             layers=hnet_hidden_layers,
             num_cond_embs=number_of_tasks,
         )
-
-        self.learnable_params = self.hnet.parameters()
         
     def forward(self, x: torch.Tensor, epsilon: float, task_id: int) -> Tuple[torch.Tensor,torch.Tensor]:
         """

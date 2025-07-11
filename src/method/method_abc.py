@@ -33,9 +33,7 @@ class MethodABC(metaclass=ABCMeta):
         self.lr = lr
         self.use_lr_scheduler = use_lr_scheduler
         self.scheduler = None
-
-        self.setup_optim()
-
+        self.optimizer = None
 
     @abstractmethod
     def setup_task(self, task_id: int) -> None:
@@ -74,16 +72,14 @@ class MethodABC(metaclass=ABCMeta):
     def setup_optim(self) -> None:
         """
         Sets up the optimizer and the scheduler (if applicable) for the model.
-        This method initializes the optimizer with the model parameters that require
-        gradients.
+        Initializes the optimizer with model parameters that require gradients.
         """
 
-        params = list(self.module.learnable_params)
+        # Always fetch fresh parameters from the hnet
+        params = filter(lambda p: p.requires_grad, self.module.hnet.parameters())
 
-        # Double check if the parameters require gradients
-        params = filter(lambda p: p.requires_grad, params)
         self.optimizer = torch.optim.Adam(params, lr=self.lr)
-        
+
         if self.use_lr_scheduler:
             self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
                 self.optimizer,

@@ -114,6 +114,8 @@ class SHIELD(MethodABC):
             - Sets `self.current_kappa` to 1.0.
         """
 
+        self.setup_optim()
+
         if task_id > 0:
             self.regularization_targets = hreg.get_current_targets(
                 task_id, deepcopy(self.module.hnet)
@@ -122,6 +124,7 @@ class SHIELD(MethodABC):
         self.current_epsilon = 0.0
         self.current_kappa = 1.0
         self.current_iteration = 0
+        
     
     def forward(self, x: torch.Tensor, y: torch.Tensor, task_id: int) -> Tuple[torch.Tensor,torch.Tensor]:
         """
@@ -194,10 +197,3 @@ class SHIELD(MethodABC):
                     y_a: torch.Tensor, y_b: torch.Tensor, lam: float) -> torch.Tensor:
         """Computes the mixup loss."""
         return lam * criterion(pred, y_a) + (1 - lam) * criterion(pred, y_b)
-    
-    def detach_embedding(self, task_id: int) -> None:
-        """
-        Detaches a learned embedding from a computational graph.
-        """
-
-        self.module.hnet.conditional_params[task_id].requires_grad_(False)

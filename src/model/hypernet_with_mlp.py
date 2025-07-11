@@ -19,7 +19,6 @@ class HyperNetWithMLP(CLModuleABC):
         target_network (IntervalMLP): The main task-specific network that takes weights
             from the hypernetwork and processes inputs accordingly.
         hnet (HMLP): A conditional hypernetwork that generates weights for the MLP.
-        learnable_params (iterable): The parameters of the hypernetwork (for optimization).
     """
 
     def __init__(self, 
@@ -62,8 +61,6 @@ class HyperNetWithMLP(CLModuleABC):
             layers=hnet_hidden_layers,
             num_cond_embs=number_of_tasks,
         )
-
-        self.learnable_params = self.hnet.parameters()
         
 
     def forward(self, x: torch.Tensor, task_id: int, epsilon: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
