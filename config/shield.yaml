@@ -3,15 +3,7 @@ defaults:
   - dataset: permuted_mnist
   - model: mlp
   - method: shield
-
-exp:
-  run_func:
-    _target_: experiment.interval_training
-  seed: 42
-  log_dir: # set during runtime to automatically created dir
-  batch_size: 32
-  no_epochs:
-  no_iterations: 5
+  - exp: interval_training  
 
 fabric:
   _target_: lightning.Fabric

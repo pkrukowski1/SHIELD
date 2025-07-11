@@ -11,6 +11,8 @@ parameters:
     value: shield
   model:
     value: vit
+  exp:
+    value: interval_training
 
   # Dataset (fixed)
   dataset._target_:
