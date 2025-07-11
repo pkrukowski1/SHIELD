@@ -29,7 +29,7 @@ def experiment(config: DictConfig) -> None:
 
     number_of_tasks = config.dataset.number_of_tasks
 
-    log.info(f'Initializing scenarios')
+    log.info("Preparing datasets")
     cl_dataset = instantiate(config.dataset)
     task_datasets = cl_dataset.prepare_tasks(os.getenv("DATA_DIR"))
 

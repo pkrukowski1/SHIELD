@@ -197,3 +197,9 @@ class SHIELD(MethodABC):
                     y_a: torch.Tensor, y_b: torch.Tensor, lam: float) -> torch.Tensor:
         """Computes the mixup loss."""
         return lam * criterion(pred, y_a) + (1 - lam) * criterion(pred, y_b)
+    
+    def detach_embedding(self, task_id) -> None:
+        """
+        Detaches the `task_id`-th embedding from a computational graph.
+        """
+        self.module.hnet.conditional_params[task_id].requires_grad_(False)
