@@ -3,7 +3,7 @@ defaults:
   - dataset: permuted_mnist
   - model: mlp
   - method: shield
-  - exp: interval_training  
+  - exp: calc_ver_accuracy
 
 fabric:
   _target_: lightning.Fabric
