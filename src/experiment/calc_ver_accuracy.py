@@ -3,8 +3,7 @@ import torch
 import logging
 import matplotlib.pyplot as plt
 import wandb
-from typing import Dict
-from collections import defaultdict
+from typing import List, Optional
 from omegaconf import DictConfig
 from hydra.utils import instantiate
 
@@ -16,22 +15,44 @@ log.setLevel(logging.INFO)
 
 
 def prepare_weights(hnet_weights: dict, model: CLModuleABC) -> dict:
+    """
+    Prepares weights of a hypernetwork with corrected keys for loading.
+
+    Args:
+        hnet_weights (dict): Loaded hypernetwork weights (state dict).
+        model (CLModuleABC): Model instance containing hypernetwork.
+
+    Returns:
+        dict: Updated state dict compatible with model.hnet.
+    """
     return {
         hypernet_key: hnet_weights[loaded_key]
         for (hypernet_key, _), loaded_key in zip(model.hnet.named_parameters(), hnet_weights.keys())
     }
 
 
-def compute_per_class_verified_accuracy(
+def compute_verified_accuracy_per_task(
     model: CLModuleABC,
-    datasets,
+    datasets: List,
     fabric,
-    config,
-    num_classes: int
-) -> Dict[int, float]:
-    verified_correct = defaultdict(int)
-    total_per_class = defaultdict(int)
+    config: DictConfig,
+) -> List[float]:
+    """
+    Computes verified accuracy for each task in the dataset.
 
+    Verified accuracy means the fraction of inputs where the predicted class
+    remains the same under IBP bounds (lower == upper == true label).
+
+    Args:
+        model (CLModuleABC): The model to evaluate.
+        datasets (List): List of task datasets.
+        fabric: Fabric device and setup handler.
+        config (DictConfig): Configuration object with experiment params.
+
+    Returns:
+        List[float]: Verified accuracy for each task.
+    """
+    accuracies = []
     for task_id, dataset in enumerate(datasets):
         inputs, targets = dataset.get_test_inputs(), dataset.get_test_outputs()
         test_input = dataset.input_to_torch_tensor(inputs, fabric.device, mode="inference")
@@ -49,36 +70,38 @@ def compute_per_class_verified_accuracy(
             upper_pred = upper.argmax(dim=-1)
 
             verified = (lower_pred == upper_pred) & (lower_pred == test_target)
+            verified_acc = verified.float().mean().item()
+            accuracies.append(verified_acc)
 
-            for cls in range(num_classes):
-                class_mask = (test_target == cls)
-                verified_correct[cls] += (verified & class_mask).sum().item()
-                total_per_class[cls] += class_mask.sum().item()
-
-    return {
-        cls: (verified_correct[cls] / total_per_class[cls]) if total_per_class[cls] > 0 else 0.0
-        for cls in range(num_classes)
-    }
+    return accuracies
 
 
-def plot_verified_accuracy_bar(per_class1, per_class2, label1, label2, save_path=None):
-    classes = sorted(per_class1.keys())
-    acc1 = [per_class1[c] for c in classes]
-    acc2 = [per_class2[c] for c in classes]
+def plot_per_task_verified_accuracy(
+    acc_nomixup: List[float],
+    acc_mixup: List[float],
+    save_path: Optional[str] = None,
+) -> None:
+    """
+    Plots a grouped bar chart of verified accuracy per task for No Mixup and Mixup models.
 
-    x = range(len(classes))
+    Args:
+        acc_nomixup (List[float]): Verified accuracy list for No Mixup model.
+        acc_mixup (List[float]): Verified accuracy list for Mixup model.
+        save_path (Optional[str]): Path to save the figure. If None, shows the plot.
+    """
+    tasks = list(range(len(acc_nomixup)))
     width = 0.35
 
-    plt.figure(figsize=(10, 5))
-    plt.bar(x, acc1, width=width, label=label1, color='skyblue')
-    plt.bar([i + width for i in x], acc2, width=width, label=label2, color='salmon')
-    plt.xlabel("Class", fontsize=12)
-    plt.ylabel("Verified Accuracy", fontsize=12)
-    plt.title("Per-Class Verified Accuracy: Mixup vs No Mixup", fontsize=14)
-    plt.xticks([i + width / 2 for i in x], classes)
-    plt.ylim(0, 1.0)
+    plt.figure(figsize=(12, 6))
+    plt.bar(tasks, acc_nomixup, width=width, label='No Mixup', color='skyblue')
+    plt.bar([t + width for t in tasks], acc_mixup, width=width, label='Mixup', color='salmon')
+    plt.xlabel('Task ID', fontsize=12)
+    plt.ylabel('Verified Accuracy', fontsize=12)
+    plt.title('Per-Task Verified Accuracy: Mixup vs No Mixup', fontsize=14)
+    plt.xticks([t + width/2 for t in tasks], tasks)
+    plt.ylim(0, 1)
     plt.legend()
-    plt.grid(True, axis='y')
+    plt.grid(axis='y')
     plt.tight_layout()
 
     if save_path:
@@ -89,8 +112,14 @@ def plot_verified_accuracy_bar(per_class1, per_class2, label1, label2, save_path
 
 
 def experiment(config: DictConfig) -> None:
+    """
+    Main experiment function: loads dataset and models, computes per-task verified accuracy
+    for both No Mixup and Mixup models, then plots and logs the results.
+
+    Args:
+        config (DictConfig): Configuration object with all experiment parameters.
+    """
     number_of_tasks = config.dataset.number_of_tasks
-    no_classes_per_task = config.model.no_classes_per_task
 
     log.info("Preparing datasets")
     cl_dataset = instantiate(config.dataset)
@@ -112,34 +141,17 @@ def experiment(config: DictConfig) -> None:
     model.hnet.eval()
     mixup_model.hnet.eval()
 
-    log.info("🔍 Computing per-class verified accuracy")
-    verified_acc_no_mixup = compute_per_class_verified_accuracy(model, task_datasets, fabric, config, no_classes_per_task)
-    verified_acc_mixup = compute_per_class_verified_accuracy(mixup_model, task_datasets, fabric, config, no_classes_per_task)
+    log.info("🔍 Computing per-task verified accuracy")
+    acc_nomixup = compute_verified_accuracy_per_task(model, task_datasets, fabric, config)
+    acc_mixup = compute_verified_accuracy_per_task(mixup_model, task_datasets, fabric, config)
 
-    avg_no_mixup = sum(verified_acc_no_mixup.values()) / len(verified_acc_no_mixup)
-    avg_mixup = sum(verified_acc_mixup.values()) / len(verified_acc_mixup)
+    log.info(f"Per-task verified accuracy No Mixup: {acc_nomixup}")
+    log.info(f"Per-task verified accuracy Mixup:    {acc_mixup}")
 
-    log.info(f"Avg Verified Accuracy (No Mixup): {avg_no_mixup:.4f}")
-    log.info(f"Avg Verified Accuracy (Mixup):    {avg_mixup:.4f}")
-    log.info(f"Per-Class Verified Accuracy (No Mixup): {verified_acc_no_mixup}")
-    log.info(f"Per-Class Verified Accuracy (Mixup):    {verified_acc_mixup}")
-
-    save_path = os.path.join(config.exp.log_dir, "per_class_verified_acc.png")
-    plot_verified_accuracy_bar(
-        verified_acc_no_mixup,
-        verified_acc_mixup,
-        label1="No Mixup",
-        label2="Mixup",
-        save_path=save_path
-    )
+    save_path = os.path.join(config.exp.log_dir, "per_task_verified_accuracy.png")
+    plot_per_task_verified_accuracy(acc_nomixup, acc_mixup, save_path)
 
     if wandb.run:
-        wandb.log({
-            "verified_accuracy_per_class_plot": wandb.Image(save_path),
-            "avg_verified_accuracy_no_mixup": avg_no_mixup,
-            "avg_verified_accuracy_mixup": avg_mixup,
-            "verified_accuracy_per_class_no_mixup": verified_acc_no_mixup,
-            "verified_accuracy_per_class_mixup": verified_acc_mixup
-        })
+        wandb.log({"per_task_verified_accuracy": wandb.Image(save_path)})
 
-    log.info(f"Saved per-class verified accuracy plot at: {save_path}")
+    log.info(f"Saved per-task verified accuracy plot at: {save_path}")
