@@ -56,22 +56,54 @@ def compute_verified_accuracy_per_task(
     for task_id, dataset in enumerate(datasets):
         inputs, targets = dataset.get_test_inputs(), dataset.get_test_outputs()
         test_input = dataset.input_to_torch_tensor(inputs, fabric.device, mode="inference")
-        test_target = dataset.output_to_torch_tensor(targets, fabric.device)
-
-        if test_target.ndim > 1 and test_target.size(1) > 1:
-            test_target = test_target.argmax(dim=1)
+        test_target = dataset.output_to_torch_tensor(targets, fabric.device, mode="inference")
+        test_target = test_target.max(dim=1)[1]
 
         with torch.no_grad():
             logits, eps = model(x=test_input, epsilon=config.exp.epsilon, task_id=task_id)
             lower = logits - eps
             upper = logits + eps
 
-            lower_pred = lower.argmax(dim=-1)
-            upper_pred = upper.argmax(dim=-1)
+            lower_pred = lower.max(dim=1)[1]
+            upper_pred = upper.max(dim=1)[1]
 
             verified = (lower_pred == upper_pred) & (lower_pred == test_target)
-            verified_acc = verified.float().mean().item()
+            verified_acc = 100.0 * verified.float().mean().item()
             accuracies.append(verified_acc)
+
+    return accuracies
+
+
+def compute_classical_accuracy_per_task(
+    model: CLModuleABC,
+    datasets: List,
+    fabric,
+) -> List[float]:
+    """
+    Computes classical accuracy for each task in the dataset.
+
+    Classical accuracy is the standard fraction of correct predictions.
+
+    Args:
+        model (CLModuleABC): The model to evaluate.
+        datasets (List): List of task datasets.
+        fabric: Fabric device and setup handler.
+
+    Returns:
+        List[float]: Classical accuracy for each task.
+    """
+    accuracies = []
+    for task_id, dataset in enumerate(datasets):
+        inputs, targets = dataset.get_test_inputs(), dataset.get_test_outputs()
+        test_input = dataset.input_to_torch_tensor(inputs, fabric.device, mode="inference")
+        test_target = dataset.output_to_torch_tensor(targets, fabric.device, mode="inference")
+        test_target = test_target.max(dim=1)[1]
+
+        with torch.no_grad():
+            logits = model(x=test_input, epsilon=0.0, task_id=task_id)[0]
+            preds = logits.max(dim=1)[1]
+            acc = 100.0 * (preds == test_target).float().mean().item()
+            accuracies.append(acc)
 
     return accuracies
 
@@ -79,27 +111,35 @@ def compute_verified_accuracy_per_task(
 def plot_per_task_verified_accuracy(
     acc_nomixup: List[float],
     acc_mixup: List[float],
+    acc_classical: List[float],
     save_path: Optional[str] = None,
 ) -> None:
     """
-    Plots a grouped bar chart of verified accuracy per task for No Mixup and Mixup models.
+    Plots a grouped bar chart of per-task accuracy for No Mixup, Mixup, and Classical models.
 
     Args:
         acc_nomixup (List[float]): Verified accuracy list for No Mixup model.
         acc_mixup (List[float]): Verified accuracy list for Mixup model.
+        acc_classical (List[float]): Classical (non-verified) accuracy list.
         save_path (Optional[str]): Path to save the figure. If None, shows the plot.
     """
-    tasks = list(range(len(acc_nomixup)))
-    width = 0.35
+    tasks = list(range(1,len(acc_nomixup)+1))
+    width = 0.25
 
-    plt.figure(figsize=(12, 6))
-    plt.bar(tasks, acc_nomixup, width=width, label='No Mixup', color='skyblue')
-    plt.bar([t + width for t in tasks], acc_mixup, width=width, label='Mixup', color='salmon')
+    all_acc = acc_nomixup + acc_mixup + acc_classical
+    y_min = max(0, min(all_acc) - 5)
+    y_max = min(100, max(all_acc) + 5)
+
+    plt.figure(figsize=(14, 6))
+    plt.bar([t - width for t in tasks], acc_nomixup, width=width, label='No Mixup (Verified)', color='skyblue')
+    plt.bar(tasks, acc_mixup, width=width, label='Mixup (Verified)', color='salmon')
+    plt.bar([t + width for t in tasks], acc_classical, width=width, label='Classical Accuracy', color='lightgreen')
+
     plt.xlabel('Task ID', fontsize=12)
-    plt.ylabel('Verified Accuracy', fontsize=12)
-    plt.title('Per-Task Verified Accuracy: Mixup vs No Mixup', fontsize=14)
-    plt.xticks([t + width/2 for t in tasks], tasks)
-    plt.ylim(0, 1)
+    plt.ylabel('Accuracy [%]', fontsize=12)
+    plt.title('Per-Task Accuracy', fontsize=14)
+    plt.xticks(tasks, [str(t) for t in tasks])
+    plt.ylim(y_min, y_max)
     plt.legend()
     plt.grid(axis='y')
     plt.tight_layout()
@@ -113,8 +153,8 @@ def plot_per_task_verified_accuracy(
 
 def experiment(config: DictConfig) -> None:
     """
-    Main experiment function: loads dataset and models, computes per-task verified accuracy
-    for both No Mixup and Mixup models, then plots and logs the results.
+    Main experiment function: loads dataset and models, computes per-task verified and classical accuracy
+    for No Mixup and Mixup models, then plots and logs the results.
 
     Args:
         config (DictConfig): Configuration object with all experiment parameters.
@@ -141,15 +181,19 @@ def experiment(config: DictConfig) -> None:
     model.hnet.eval()
     mixup_model.hnet.eval()
 
-    log.info("🔍 Computing per-task verified accuracy")
+    log.info("Computing per-task verified accuracy")
     acc_nomixup = compute_verified_accuracy_per_task(model, task_datasets, fabric, config)
     acc_mixup = compute_verified_accuracy_per_task(mixup_model, task_datasets, fabric, config)
 
+    log.info("Computing per-task classical accuracy")
+    acc_classical = compute_classical_accuracy_per_task(mixup_model, task_datasets, fabric)
+
     log.info(f"Per-task verified accuracy No Mixup: {acc_nomixup}")
     log.info(f"Per-task verified accuracy Mixup:    {acc_mixup}")
+    log.info(f"Per-task classical accuracy:         {acc_classical}")
 
     save_path = os.path.join(config.exp.log_dir, "per_task_verified_accuracy.png")
-    plot_per_task_verified_accuracy(acc_nomixup, acc_mixup, save_path)
+    plot_per_task_verified_accuracy(acc_nomixup, acc_mixup, acc_classical, save_path)
 
     if wandb.run:
         wandb.log({"per_task_verified_accuracy": wandb.Image(save_path)})

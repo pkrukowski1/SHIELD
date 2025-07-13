@@ -94,7 +94,7 @@ def experiment(config: DictConfig) -> None:
         pass
 
 
-    write_pickle_file(f'{config.exp.log_dir}/hnet', best_module)
+    write_pickle_file(f'{config.exp.log_dir}/hnet', best_module.hnet.weights)
 
     plot_heatmap(f'{config.exp.log_dir}/results.csv')
 
