@@ -111,7 +111,7 @@ def plot_acc_diff_decay_rates(
     for _, final, label in results:
         plt.plot(x, final, marker='o', label=label)
     plt.title("Accuracy on All Tasks After Learning Final Task", fontsize=14)
-    plt.xlabel("Tested Task Index", fontsize=14)
+    plt.xlabel("Task Index", fontsize=14)
     plt.ylabel("Accuracy (%)", fontsize=14)
     plt.grid(True)
     plt.xticks(x, fontsize=14)
