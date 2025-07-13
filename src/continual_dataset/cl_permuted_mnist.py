@@ -45,6 +45,7 @@ class PermutedMNIST(ContinualLearningTaskGenerator):
         Returns:
             List[np.ndarray]: A list of permutation arrays.
         """
+        np.random.seed(self.seed)
         return [np.random.permutation(self.input_shape) for _ in range(self.number_of_tasks)]
 
     def prepare_tasks(self, datasets_folder: str) -> permuted_mnist.PermutedMNISTList:
