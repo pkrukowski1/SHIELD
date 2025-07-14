@@ -78,6 +78,7 @@ def compute_classical_accuracy_per_task(
     model: CLModuleABC,
     datasets: List,
     fabric,
+    config: DictConfig
 ) -> List[float]:
     """
     Computes classical accuracy for each task in the dataset.
@@ -88,6 +89,7 @@ def compute_classical_accuracy_per_task(
         model (CLModuleABC): The model to evaluate.
         datasets (List): List of task datasets.
         fabric: Fabric device and setup handler.
+        config (DictConfig): Configuration object with experiment params.
 
     Returns:
         List[float]: Classical accuracy for each task.
@@ -100,7 +102,7 @@ def compute_classical_accuracy_per_task(
         test_target = test_target.max(dim=1)[1]
 
         with torch.no_grad():
-            logits = model(x=test_input, epsilon=0.0, task_id=task_id)[0]
+            logits = model(x=test_input, epsilon=config.exp.epsilon, task_id=task_id)[0]
             preds = logits.max(dim=1)[1]
             acc = 100.0 * (preds == test_target).float().mean().item()
             accuracies.append(acc)
@@ -186,7 +188,7 @@ def experiment(config: DictConfig) -> None:
     acc_mixup = compute_verified_accuracy_per_task(mixup_model, task_datasets, fabric, config)
 
     log.info("Computing per-task classical accuracy")
-    acc_classical = compute_classical_accuracy_per_task(mixup_model, task_datasets, fabric)
+    acc_classical = compute_classical_accuracy_per_task(mixup_model, task_datasets, fabric, config)
 
     log.info(f"Per-task verified accuracy No Mixup: {acc_nomixup}")
     log.info(f"Per-task verified accuracy Mixup:    {acc_mixup}")
