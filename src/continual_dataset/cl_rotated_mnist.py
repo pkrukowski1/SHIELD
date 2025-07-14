@@ -27,13 +27,16 @@ class RotatedMNIST(ContinualLearningTaskGenerator):
             seed (int): Random seed for reproducibility.
             padding (int): Amount of zero-padding applied to each image.
             validation_size (int): Number of samples in the validation set.
+            input_shape (int): The number of pixels (e.g., 784 for 28x28 MNIST images).
         """
         super().__init__()
 
         self.number_of_tasks = number_of_tasks
-        self.seed = 1
+        self.seed = 10
         self.padding = padding
         self.validation_size = validation_size
+
+        self.input_shape = (28 + 2*self.padding)**2
 
     def _generate_task_variations(self) -> List[np.ndarray]:
         """
@@ -44,7 +47,7 @@ class RotatedMNIST(ContinualLearningTaskGenerator):
         """
 
         np.random.seed(self.seed)
-        return [np.random.uniform(0, 360) for _ in range(self.number_of_tasks)]
+        return [np.random.uniform(0, 360) for _ in range(self.input_shape)][:self.number_of_tasks]
 
     def prepare_tasks(self, datasets_folder: str) -> RotatedMNISTlist:
         """
