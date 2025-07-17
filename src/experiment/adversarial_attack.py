@@ -58,12 +58,19 @@ def experiment(config: DictConfig) -> None:
 
             # Compute classical accuracy on adversarial inputs
             with torch.no_grad():
-                logits, _ = model(x=adv_input, task_id=task_id, epsilon=config.method.epsilon)
+                logits, _ = model(x=adv_input, task_id=task_id, epsilon=config.exp.epsilon)
                 preds = logits.max(dim=1)[1]
                 acc = 100.0 * (preds == test_target).float().mean().item()
 
             log.info(f"[{attack_name}] Task {task_id} | Adversarial Accuracy: {acc:.4f}%")
             results.append({"task_id": task_id, "adversarial_accuracy": acc})
+
+        # Compute average accuracy across all tasks
+        avg_acc = sum(r["adversarial_accuracy"] for r in results) / len(results)
+        log.info(f"[{attack_name}] Average Adversarial Accuracy over all tasks: {avg_acc:.4f}%")
+
+        # Append average to results
+        results.append({"task_id": "average", "adversarial_accuracy": avg_acc})
 
         # Save results to CSV
         results_df = pd.DataFrame(results)

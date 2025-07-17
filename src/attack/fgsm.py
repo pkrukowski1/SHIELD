@@ -56,7 +56,7 @@ class FGSM:
         loss = nn.CrossEntropyLoss()
 
         images.requires_grad = True
-        outputs, _ = self.model(images, task_id, epsilon=0.0)
+        outputs, _ = self.model(images, task_id=task_id, epsilon=0.0)
 
         cost = loss(outputs, labels)
 

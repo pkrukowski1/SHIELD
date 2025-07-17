@@ -72,7 +72,7 @@ class PGD:
 
         for _ in range(self.steps):
             adv_images.requires_grad = True
-            outputs, _ = self.model(adv_images, task_id, epsilon=0.0)
+            outputs, _ = self.model(adv_images, task_id=task_id, epsilon=0.0)
 
             # Calculate loss
             cost = loss(outputs, labels)
