@@ -2,7 +2,7 @@ run_func:
     _target_: experiment.calc_ver_accuracy
 seed: 1
 log_dir: # set during runtime to automatically created dir
-epsilon: 0.0001
+epsilon: 0.01
 
-path_to_mixup_weights: outputs/2025-07-13/15-03-40
-path_to_weights: outputs/2025-07-13/15-03-40
+path_to_mixup_weights: saved_models/permuted_mnist/full_architecture_with_mixup/0
+path_to_weights: saved_models/permuted_mnist/full_architecture/0

@@ -12,7 +12,6 @@ class AttackModelWrapper(nn.Module):
 
     Args:
         model (nn.Module): The neural network model to be wrapped.
-        weights (Any): The weights or parameters to be used by the model during the forward pass.
         num_classes_total (int): The total number of classes in the dataset, used for padding logits.
         device (torch.device or str): The device on which computations will be performed.
 
@@ -26,15 +25,14 @@ class AttackModelWrapper(nn.Module):
         wrapper = AttackModelWrapper(model, weights, device)
         logits = wrapper(input_tensor)
     """
-    def __init__(self, model, weights, num_classes_total, device):
+    def __init__(self, model, num_classes_total, device):
         super(AttackModelWrapper, self).__init__()
         self.model = model
-        self.weights = weights
         self.num_classes_total = num_classes_total
         self.device = device
 
     def forward(self, x):
-        logits, _ = self.model(x, epsilon=0.0, weights=self.weights, condition=None)
+        logits, _ = self.model(x, condition=None, epsilon=0.0)
 
         # Pad logits to full number of classes with very negative values
         num_classes = logits.size(1)

@@ -1,0 +1,21 @@
+run_func:
+    _target_: experiment.adversarial_attack
+seed: 1
+log_dir: # set during runtime to automatically created dir
+epsilon: 0.01
+attack:
+    fgsm:
+        _target_: attack.FGSM
+        eps: 0.09803921568 
+    pgd:
+        _target_: attack.PGD
+        eps: 0.00784313725 
+        alpha: 0.15686274509 
+        steps: 10
+        random_start: True
+    auto_attack:
+        _target_: attack.AutoAttack
+        eps: 0.07843137254 
+        total_no_classes: 100
+    
+path_to_weights: saved_models/permuted_mnist/full_architecture_with_mixup/0

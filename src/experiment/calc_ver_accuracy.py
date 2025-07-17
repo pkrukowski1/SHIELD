@@ -9,26 +9,10 @@ from hydra.utils import instantiate
 
 from utils.fabric import setup_fabric
 from model.model_abc import CLModuleABC
+from utils.handy_functions import prepare_weights, compute_classical_accuracy_per_task
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
-
-
-def prepare_weights(hnet_weights: dict, model: CLModuleABC) -> dict:
-    """
-    Prepares weights of a hypernetwork with corrected keys for loading.
-
-    Args:
-        hnet_weights (dict): Loaded hypernetwork weights (state dict).
-        model (CLModuleABC): Model instance containing hypernetwork.
-
-    Returns:
-        dict: Updated state dict compatible with model.hnet.
-    """
-    return {
-        hypernet_key: hnet_weights[loaded_key]
-        for (hypernet_key, _), loaded_key in zip(model.hnet.named_parameters(), hnet_weights.keys())
-    }
 
 
 def compute_verified_accuracy_per_task(
@@ -70,42 +54,6 @@ def compute_verified_accuracy_per_task(
             verified = (lower_pred == upper_pred) & (lower_pred == test_target)
             verified_acc = 100.0 * verified.float().mean().item()
             accuracies.append(verified_acc)
-
-    return accuracies
-
-
-def compute_classical_accuracy_per_task(
-    model: CLModuleABC,
-    datasets: List,
-    fabric,
-    config: DictConfig
-) -> List[float]:
-    """
-    Computes classical accuracy for each task in the dataset.
-
-    Classical accuracy is the standard fraction of correct predictions.
-
-    Args:
-        model (CLModuleABC): The model to evaluate.
-        datasets (List): List of task datasets.
-        fabric: Fabric device and setup handler.
-        config (DictConfig): Configuration object with experiment params.
-
-    Returns:
-        List[float]: Classical accuracy for each task.
-    """
-    accuracies = []
-    for task_id, dataset in enumerate(datasets):
-        inputs, targets = dataset.get_test_inputs(), dataset.get_test_outputs()
-        test_input = dataset.input_to_torch_tensor(inputs, fabric.device, mode="inference")
-        test_target = dataset.output_to_torch_tensor(targets, fabric.device, mode="inference")
-        test_target = test_target.max(dim=1)[1]
-
-        with torch.no_grad():
-            logits = model(x=test_input, epsilon=config.exp.epsilon, task_id=task_id)[0]
-            preds = logits.max(dim=1)[1]
-            acc = 100.0 * (preds == test_target).float().mean().item()
-            accuracies.append(acc)
 
     return accuracies
 

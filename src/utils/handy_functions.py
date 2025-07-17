@@ -1,7 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from typing import Union
+from typing import Union, List
 from copy import deepcopy
 
 import torch
@@ -67,3 +67,55 @@ def make_deepcopy(method: MethodABC, config: DictConfig, device: torch.device) -
     best_module = best_module.to(device)
 
     return best_module
+
+def prepare_weights(hnet_weights: dict, model: CLModuleABC) -> dict:
+    """
+    Prepares weights of a hypernetwork with corrected keys for loading.
+
+    Args:
+        hnet_weights (dict): Loaded hypernetwork weights (state dict).
+        model (CLModuleABC): Model instance containing hypernetwork.
+
+    Returns:
+        dict: Updated state dict compatible with model.hnet.
+    """
+    return {
+        hypernet_key: hnet_weights[loaded_key]
+        for (hypernet_key, _), loaded_key in zip(model.hnet.named_parameters(), hnet_weights.keys())
+    }
+
+
+def compute_classical_accuracy_per_task(
+    model: CLModuleABC,
+    datasets: List,
+    fabric,
+    config: DictConfig
+) -> List[float]:
+    """
+    Computes classical accuracy for each task in the dataset.
+
+    Classical accuracy is the standard fraction of correct predictions.
+
+    Args:
+        model (CLModuleABC): The model to evaluate.
+        datasets (List): List of task datasets.
+        fabric: Fabric device and setup handler.
+        config (DictConfig): Configuration object with experiment params.
+
+    Returns:
+        List[float]: Classical accuracy for each task.
+    """
+    accuracies = []
+    for task_id, dataset in enumerate(datasets):
+        inputs, targets = dataset.get_test_inputs(), dataset.get_test_outputs()
+        test_input = dataset.input_to_torch_tensor(inputs, fabric.device, mode="inference")
+        test_target = dataset.output_to_torch_tensor(targets, fabric.device, mode="inference")
+        test_target = test_target.max(dim=1)[1]
+
+        with torch.no_grad():
+            logits = model(x=test_input, epsilon=config.exp.epsilon, task_id=task_id)[0]
+            preds = logits.max(dim=1)[1]
+            acc = 100.0 * (preds == test_target).float().mean().item()
+            accuracies.append(acc)
+
+    return accuracies

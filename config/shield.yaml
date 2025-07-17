@@ -3,7 +3,7 @@ defaults:
   - dataset: permuted_mnist
   - model: mlp
   - method: shield
-  - exp: calc_ver_accuracy
+  - exp: adversarial_attack
 
 fabric:
   _target_: lightning.Fabric
