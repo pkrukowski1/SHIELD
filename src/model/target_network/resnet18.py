@@ -323,7 +323,7 @@ class IntervalResNet18(Classifier):
         self._is_properly_setup(check_has_bias=False)
 
     def __str__(self):
-        return "IntervalResNet18-SplitMiniImageNet-Reduced"
+        return "IntervalResNet18-SplitMiniImageNet"
 
     @property
     def has_bias(self) -> bool:
