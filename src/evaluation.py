@@ -125,13 +125,22 @@ def plot_acc_diff_decay_rates(
 if __name__ == "__main__":
     plot_decay_rates("./ablation_study/interval_mixup/decay_rates.png")
 
-    # PermutedMNIST
+    # Permuted MNIST
     plot_acc_diff_decay_rates(
         folder_path="./ablation_study/interval_mixup/permuted_mnist",
         linear_decay_path="./saved_models/permuted_mnist/mixup/linear/results.csv",
         quadratic_decay_path="./saved_models/permuted_mnist/mixup/quadratic/results.csv",
         log_decay_path="./saved_models/permuted_mnist/mixup/log/results.csv",
         cos_decay_path="./saved_models/permuted_mnist/mixup/cos/results.csv"
+    )
+
+    # Split MiniImageNet
+    plot_acc_diff_decay_rates(
+        folder_path="./ablation_study/interval_mixup/split_mini_imagenet",
+        linear_decay_path="./saved_models/split_mini_imagenet/mixup/linear/results.csv",
+        quadratic_decay_path="./saved_models/split_mini_imagenet/mixup/quadratic/results.csv",
+        log_decay_path="./saved_models/split_mini_imagenet/mixup/log/results.csv",
+        cos_decay_path="./saved_models/split_mini_imagenet/mixup/cos/results.csv"
     )
 
     # Split-CIFAR100
