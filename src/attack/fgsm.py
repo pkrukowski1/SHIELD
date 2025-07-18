@@ -5,37 +5,37 @@ The implementation is based on the following implementation: https://adversarial
 import torch
 import torch.nn as nn
 
+from typing import Union
 
 class FGSM:
-    r"""
-    FGSM in the paper 'Explaining and harnessing adversarial examples'
-    [https://arxiv.org/abs/1412.6572]
+    """
+    Fast Gradient Sign Method (FGSM) attack.
 
-    Distance Measure : Linf
+    Reference:
+        - "Explaining and harnessing adversarial examples" (https://arxiv.org/abs/1412.6572)
 
-    Arguments:
-        model (nn.Module): model to attack.
-        eps (float): maximum perturbation. (Default: 8/255)
-        device (str): device to use. (Default: "cpu")
+    Args:
+        model (nn.Module): Model to attack.
+        task_id (int): Task identifier for the model's forward pass.
+        eps (float, optional): Maximum perturbation. Default: 8/255.
+        device (str or torch.device, optional): Device to use. Default: "cpu".
 
-    Shape:
-        - images: :math:`(N, C, H, W)` where `N = number of batches`, `C = number of channels`,        `H = height` and `W = width`. It must have a range [0, 1].
-        - labels: :math:`(N)` where each value :math:`y_i` is :math:`0 \leq y_i \leq` `number of labels`.
-        - output: :math:`(N, C, H, W)`.
+    Inputs:
+        images (torch.Tensor): Input images of shape (N, C, H, W), with values in [0, 1].
+        labels (torch.Tensor): Ground truth labels of shape (N,).
 
-    Examples::
-        >>> attack = torchattacks.FGSM(model, target_weights, eps=8/255, device="cuda")
-        >>> adv_images = attack(images, labels)
-
+    Returns:
+        torch.Tensor: Adversarial images of shape (N, C, H, W).
     """
 
-    def __init__(self, model, eps=8/255, device="cpu"):
+    def __init__(self, model: nn.Module, task_id: int, eps: float=8/255, device: Union[str,torch.device]="cpu") -> None:
         super().__init__()
         self.model = model
+        self.task_id = task_id
         self.eps = eps
         self.device = device
 
-    def forward(self, images, labels, task_id):
+    def forward(self, images: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
         """
         Generates adversarial examples using the Fast Gradient Sign Method (FGSM).
         Args:
@@ -43,8 +43,6 @@ class FGSM:
                 where N is the batch size, C is the number of channels, H is the height,
                 and W is the width.
             labels (torch.Tensor): The ground truth labels corresponding to the input images.
-            task_id (int): The identifier for the specific task or condition to be used
-                in the model's forward pass.
         Returns:
             torch.Tensor: The adversarially perturbed images, of the same shape as the input images.
         """
@@ -56,7 +54,7 @@ class FGSM:
         loss = nn.CrossEntropyLoss()
 
         images.requires_grad = True
-        outputs, _ = self.model(images, task_id=task_id, epsilon=0.0)
+        outputs, _ = self.model(images, task_id=self.task_id, epsilon=0.0)
 
         cost = loss(outputs, labels)
 
@@ -64,7 +62,6 @@ class FGSM:
         grad = torch.autograd.grad(
             cost, images, retain_graph=False, create_graph=False
         )[0]
-
         adv_images = images + self.eps * grad.sign()
         adv_images = torch.clamp(adv_images, min=0, max=1).detach()
 

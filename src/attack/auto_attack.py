@@ -3,6 +3,8 @@ import torch
 
 from autoattack import AutoAttack
 
+from typing import Union, Tuple
+
 class AttackModelWrapper(nn.Module):
     """
     A wrapper class for neural network models to facilitate adversarial attacks.
@@ -12,7 +14,8 @@ class AttackModelWrapper(nn.Module):
 
     Args:
         model (nn.Module): The neural network model to be wrapped.
-        num_classes_total (int): The total number of classes in the dataset, used for padding logits.
+        task_id (int): Identifier for the specific task or condition to be used in the model's forward pass.
+        total_no_classes (int): The total number of classes in the dataset, used for padding logits.
         device (torch.device or str): The device on which computations will be performed.
 
     Methods:
@@ -25,19 +28,21 @@ class AttackModelWrapper(nn.Module):
         wrapper = AttackModelWrapper(model, weights, device)
         logits = wrapper(input_tensor)
     """
-    def __init__(self, model, num_classes_total, device):
+    def __init__(self, model: nn.Module, task_id: int, total_no_classes: int, 
+                 device: Union[str,torch.device] = "cpu") -> None:
         super(AttackModelWrapper, self).__init__()
         self.model = model
-        self.num_classes_total = num_classes_total
+        self.task_id = task_id
+        self.total_no_classes = total_no_classes
         self.device = device
 
     def forward(self, x):
-        logits, _ = self.model(x, condition=None, epsilon=0.0)
+        logits, _ = self.model(x, task_id=self.task_id, epsilon=0.0)
 
         # Pad logits to full number of classes with very negative values
         num_classes = logits.size(1)
-        if num_classes < self.num_classes_total:
-            pad_size = self.num_classes_total - num_classes
+        if num_classes < self.total_no_classes:
+            pad_size = self.total_no_classes - num_classes
             padding = torch.full((logits.size(0), pad_size), -1e10, device=logits.device)
             logits = torch.cat([logits, padding], dim=1)
 
@@ -52,8 +57,8 @@ class AutoAttackWrapper(AutoAttack):
         model (torch.nn.Module): The neural network model to attack.
         weights (str or dict): Path to the model weights or a state dict.
         eps (float): Maximum perturbation allowed for the attack.
-        dataset (str): Name of the dataset (e.g., "PermutedMNIST", "CIFAR100").
-        num_classes_total (int): Total number of classes in the dataset for padding logits.
+        input_shape (Tuple[int,int,int]): Expected input shape for the dataset (C, H, W).
+        total_no_classes (int): Total number of classes in the dataset for padding logits.
         device (torch.device or str): Device to run the attack on.
         norm (str, optional): Norm to use for the attack ('Linf', 'L2', etc.). Default is 'Linf'.
         version (str, optional): Version of AutoAttack to use. Default is 'custom'.
@@ -70,8 +75,9 @@ class AutoAttackWrapper(AutoAttack):
             Returns:
                 dict: Results of the adversarial evaluation.
     """
-    def __init__(self, model, weights, eps, dataset, num_classes_total, device, norm='Linf', version='custom'):
-        self.model_wrapper = AttackModelWrapper(model, weights, num_classes_total, device)
+    def __init__(self, model: nn.Module, task_id: int, eps: float, input_shape: Tuple[int,int,int], 
+                 total_no_classes: int, device: Union[torch.device,str], norm: str='Linf', version: str='custom') -> None:
+        self.model_wrapper = AttackModelWrapper(model, task_id, total_no_classes, device)
 
         super(AutoAttackWrapper, self).__init__(
             model=self.model_wrapper,
@@ -83,15 +89,17 @@ class AutoAttackWrapper(AutoAttack):
             attacks_to_run=["apgd-ce", "apgd-t", "fab", "square"]
         )
         self.model_wrapper.to(device)
-
-        if dataset in ["PermutedMNIST", "RotatedMNIST"]:
-            self.input_shape = (1, 32, 32) # With padding
-        elif dataset == "CIFAR100":
-            self.input_shape = (3, 32, 32)
-        elif dataset in ["TinyImageNet", "ImageNetSubset"]:
-            self.input_shape = (3, 64, 64)
+        self.input_shape = input_shape
         
 
-    def forward(self, images, labels, task_id):
+    def forward(self, images: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+        """
+        Runs the standard AutoAttack evaluation on the provided images and labels.
+        Args:
+            images (torch.Tensor): Input images to attack, expected shape (N, C, H, W).
+            labels (torch.Tensor): True labels for the images, expected shape (N,).
+        Returns:
+            torch.Tensor: Results of the adversarial evaluation.
+        """
         images = images.view(images.shape[0], *self.input_shape)
         return self.run_standard_evaluation(images, labels)
