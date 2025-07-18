@@ -51,10 +51,10 @@ def experiment(config: DictConfig) -> None:
             test_target = test_target.max(dim=1)[1]
 
             # Instantiate the attack
-            attack = instantiate(attack_cfg, model=model, device=fabric.device)
+            attack = instantiate(attack_cfg, model=model, task_id=task_id, device=fabric.device)
 
             # Generate adversarial examples
-            adv_input = attack.forward(test_input, test_target, task_id=task_id)
+            adv_input = attack.forward(test_input, test_target)
 
             # Compute classical accuracy on adversarial inputs
             with torch.no_grad():
