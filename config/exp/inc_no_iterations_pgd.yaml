@@ -1,0 +1,14 @@
+run_func:
+    _target_: experiment.inc_no_iterations_pgd
+seed: 1
+log_dir: # set during runtime to automatically created dir
+no_splits: 10
+attack:
+    pgd:
+        _target_: attack.PGD
+        eps: 0.00784313725 
+        alpha: 0.15686274509 
+        steps: 200
+        random_start: True
+path_to_mixup_weights: saved_models/permuted_mnist/full_architecture_with_mixup/0
+path_to_hnet_weights: saved_models/permuted_mnist/hnet/

@@ -43,7 +43,7 @@ def experiment(config: DictConfig) -> None:
     mixup_model.hnet.eval()
 
     # Define range of epsilon values
-    epsilons = np.linspace(0.0, config.exp.max_epsilon, num=config.exp.no_epsilons)
+    epsilons = np.linspace(0.0, config.exp.max_epsilon, num=config.exp.no_splits)
     all_results = []
 
     for epsilon in epsilons:
