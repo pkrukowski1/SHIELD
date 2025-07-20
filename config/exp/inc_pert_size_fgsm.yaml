@@ -1,0 +1,12 @@
+run_func:
+    _target_: experiment.inc_pert_size_fgsm
+seed: 1
+log_dir: # set during runtime to automatically created dir
+max_epsilon: 0.1
+no_epsilons: 10
+attack:
+    fgsm:
+        _target_: attack.FGSM
+        eps: 0.09803921568
+path_to_mixup_weights: saved_models/permuted_mnist/full_architecture_with_mixup/0
+path_to_hnet_weights: saved_models/permuted_mnist/hnet/
