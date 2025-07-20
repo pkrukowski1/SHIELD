@@ -222,15 +222,23 @@ class IntervalBatchNorm:
                 - new_mu (torch.Tensor): Transformed midpoint.
                 - new_eps (torch.Tensor): Transformed radius (guaranteed ≥ 0).
         """
-        mu = mu.to(device)
-        eps = eps.to(device)
-        weight = weight.to(device)
-        bias = bias.to(device)
+        mu = mu.to(device).contiguous()
+        eps = eps.to(device).contiguous()
+        weight = weight.to(device).contiguous()
+        bias = bias.to(device).contiguous()
 
+        # Interval bounds
         lower = mu - eps
         upper = mu + eps
 
-        x_cat = torch.cat([lower, upper], dim=0) 
+        # Contiguous before concat
+        lower = lower.contiguous()
+        upper = upper.contiguous()
+
+        # Stack inputs
+        x_cat = torch.cat([lower, upper], dim=0).contiguous()
+
+        # BN pass (may not preserve contiguity!)
         x_cat_bn = batch_norm_forward(
             x_cat,
             running_mean=running_mean,
@@ -251,10 +259,12 @@ class IntervalBatchNorm:
         # Enforce valid bounds
         lower_bn, upper_bn = torch.minimum(lower_bn, upper_bn), torch.maximum(lower_bn, upper_bn)
 
+        # Midpoint and radius
         new_mu = (upper_bn + lower_bn) / 2
         new_eps = (upper_bn - lower_bn) / 2
 
         return new_mu, new_eps
+
 
     
 class IntervalAvgPool2d:
