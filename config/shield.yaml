@@ -3,7 +3,7 @@ defaults:
   - dataset: split_cifar_100
   - model: alexnet
   - method: shield
-  - exp: inc_pert_size_fgsm
+  - exp: inc_no_iterations_pgd
 
 fabric:
   _target_: lightning.Fabric
