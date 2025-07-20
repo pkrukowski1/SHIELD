@@ -1,0 +1,75 @@
+method: grid
+metric:
+  name: avg_acc
+  goal: maximize
+
+parameters:
+
+  dataset:
+    value: split_mini_imagenet
+  method:
+    value: shield
+  model:
+    value: resnet18
+  exp:
+    value: adversarial_attack
+
+  # Dataset (fixed)
+  dataset._target_:
+    value: continual_dataset.SplitMiniImageNet
+  dataset.number_of_tasks:
+    value: 20
+  dataset.validation_size:
+    value: 1250
+  dataset.use_augmentation: 
+    value: False
+  dataset.train_only_on_first_ten_tasks:
+    value: True
+  
+  # Experiment setup
+  exp.seed:
+    value: 42
+  exp.epsilon:
+    value: 0.00784313725
+  exp.auto_attack:
+    _target_: attack.AutoAttack
+    eps: 0.07843137254 
+    total_no_classes: 100
+    input_shape: [3, 64, 64]
+  exp.path_to_weights: 
+    value: saved_models/split_mini_imagenet/full_architecture_with_mixup/42/
+
+  # Fabric setup
+  fabric.accelerator:
+    value: cpu
+
+  # Model
+  model._target_:
+    value: model.HyperNetWithResNet18
+  model.in_shape:
+    value: [64,64,3]
+  model.no_classes_per_task:
+    value: 10
+  model.activation_function._target_:
+    value: torch.nn.ReLU
+  model.hnet_hidden_layers:
+    value: [100, 50]
+  model.hnet_embedding_size:
+    value: 128
+  model.num_feature_maps: 
+    value: [16, 64, 128, 256]
+
+
+  # W&B logging
+  wandb.entity:
+    value: ${oc.env:WANDB_ENTITY}
+  wandb.project:
+    value: ${oc.env:WANDB_PROJECT}
+
+command:
+  - ${env}
+  - python
+  - src/main.py
+  - --config-name
+  - shield.yaml
+  - ${args_no_hyphens}
