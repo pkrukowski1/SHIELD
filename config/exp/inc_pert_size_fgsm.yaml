@@ -2,10 +2,10 @@ run_func:
     _target_: experiment.inc_pert_size_fgsm
 seed: 1
 log_dir: # set during runtime to automatically created dir
-max_epsilon: 0.01
+max_epsilon: 0.0156862745 
 no_splits: 10
 attack:
     fgsm:
         _target_: attack.FGSM
-path_to_mixup_weights: saved_models/split_cifar_100/full_architecture_with_mixup/0
-path_to_hnet_weights: saved_models/split_cifar_100/hnet/
+path_to_mixup_weights: saved_models/split_mini_imagenet/full_architecture_with_mixup/42
+path_to_hnet_weights: saved_models/split_mini_imagenet/hnet/

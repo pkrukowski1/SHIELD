@@ -1,9 +1,9 @@
 defaults:
   - _self_
-  - dataset: split_cifar_100
-  - model: alexnet
+  - dataset: split_mini_imagenet
+  - model: resnet18
   - method: shield
-  - exp: inc_no_iterations_pgd
+  - exp: inc_pert_size_fgsm
 
 fabric:
   _target_: lightning.Fabric

@@ -31,17 +31,22 @@ parameters:
     value: 42
   exp.epsilon:
     value: 0.00784313725
-  exp.auto_attack:
-    _target_: attack.AutoAttack
-    eps: 0.07843137254 
-    total_no_classes: 100
-    input_shape: [3, 64, 64]
+
+  exp.attack.auto_attack._target_:
+    value: attack.AutoAttack
+  exp.attack.auto_attack.eps:
+    value: 0.007843137254
+  exp.attack.auto_attack.total_no_classes:
+    value: 100
+  exp.attack.auto_attack.input_shape:
+    value: [3, 64, 64]
+
   exp.path_to_weights: 
     value: saved_models/split_mini_imagenet/full_architecture_with_mixup/42/
 
   # Fabric setup
   fabric.accelerator:
-    value: cpu
+    value: gpu
 
   # Model
   model._target_:
