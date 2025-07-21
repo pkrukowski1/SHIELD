@@ -3,6 +3,8 @@ from method.interval_mixup_decay_rate import MixupEpsilonDecayRate
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+import os
+from typing import Callable, List
 
 def plot_decay_rates(save_path: str) -> None:
     """
@@ -120,6 +122,77 @@ def plot_acc_diff_decay_rates(
     plt.tight_layout()
     plt.savefig(f"{folder_path}/accuracy_after_final_task.png")
     plt.close()
+
+def get_csv_path_for_beta(beta: float) -> str:
+    beta_str = str(beta).replace('.', '_')
+    return f"./saved_models/split_cifar_100/diff_beta/beta_{beta_str}/results.csv"
+
+def plot_acc_diff_betas(
+        folder_path: str,
+        beta_values: List[float],
+        get_csv_path: Callable
+) -> None:
+    """
+    Plots accuracy trends for different beta values in Interval MixUp:
+    (1) Accuracy after learning each task.
+    (2) Accuracy on all tasks after learning the final task.
+
+    Args:
+      folder_path (str): Directory where the plot images will be saved.
+      beta_values (list of float): List of beta values to compare.
+      get_csv_path (callable): Function that takes a beta value and returns the path to the corresponding CSV file.
+    """
+
+    def load_data(path: str, label: str):
+        df = pd.read_csv(path, sep=';')
+        max_task = df['after_learning_of_task'].max()
+
+        # Accuracy immediately after learning each task (diagonal)
+        diag = df[df['after_learning_of_task'] == df['tested_task']].sort_values('tested_task')['accuracy'].values
+
+        # Accuracy on each task after learning all tasks (final row block)
+        final = df[df['after_learning_of_task'] == max_task].sort_values('tested_task')['accuracy'].values
+
+        return diag, final, label
+
+    results = []
+    for beta in beta_values:
+        path = get_csv_path(beta)
+        label = f"β = {beta}"
+        results.append(load_data(path, label))
+
+    num_tasks = len(results[0][0])  # assumes all runs have same number of tasks
+    x = list(range(1, num_tasks + 1))
+
+    # Plot 1: Accuracy after learning each task
+    plt.figure(figsize=(8, 5))
+    for diag, _, label in results:
+        plt.plot(x, diag, marker='o', label=label)
+    plt.title("Accuracy After Learning Each Task", fontsize=14)
+    plt.xlabel("Task Index", fontsize=14)
+    plt.ylabel("Average Accuracy (%)", fontsize=14)
+    plt.xticks(x, fontsize=14)
+    plt.yticks(fontsize=14)
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(os.path.join(folder_path, "accuracy_after_each_task_beta.png"))
+    plt.close()
+
+    # Plot 2: Accuracy on all tasks after learning final task
+    plt.figure(figsize=(8, 5))
+    for _, final, label in results:
+        plt.plot(x, final, marker='o', label=label)
+    plt.title("Accuracy on All Tasks After Learning Final Task", fontsize=14)
+    plt.xlabel("Task Index", fontsize=14)
+    plt.ylabel("Average Accuracy (%)", fontsize=14)
+    plt.xticks(x, fontsize=14)
+    plt.yticks(fontsize=14)
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(os.path.join(folder_path, "accuracy_after_final_task_beta.png"))
+    plt.close()
     
 
 if __name__ == "__main__":
@@ -151,3 +224,11 @@ if __name__ == "__main__":
         log_decay_path="./saved_models/split_cifar_100/mixup/log/results.csv",
         cos_decay_path="./saved_models/split_cifar_100/mixup/cos/results.csv"
     )
+
+    # Different beta values experiment
+    plot_acc_diff_betas(
+    folder_path="./ablation_study/interval_mixup/split_cifar_100",  # or wherever you want to save plots
+    beta_values=[0.001, 0.01, 0.05, 0.1, 1.0],
+    get_csv_path=get_csv_path_for_beta
+)
+
