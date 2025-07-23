@@ -6,6 +6,18 @@ import pandas as pd
 import os
 from typing import Callable, List
 
+def load_data(path: str, label: str):
+        df = pd.read_csv(path, sep=';')
+        max_task = df['after_learning_of_task'].max()
+
+        # Accuracy immediately after learning each task (diagonal)
+        diag = df[df['after_learning_of_task'] == df['tested_task']].sort_values('tested_task')['accuracy'].values
+
+        # Accuracy on each task after learning all tasks (final row block)
+        final = df[df['after_learning_of_task'] == max_task].sort_values('tested_task')['accuracy'].values
+
+        return diag, final, label
+
 def plot_decay_rates(save_path: str) -> None:
     """
     Plots different epsilon decay rate functions used in Interval MixUp and saves the figure.
@@ -40,8 +52,8 @@ def plot_decay_rates(save_path: str) -> None:
     plt.plot(alpha, cos_decay_out, label="Cosine")
 
     plt.title("Epsilon Decay Rate Functions in Interval MixUp", fontsize=16)
-    plt.xlabel("Alpha", fontsize=14)
-    plt.ylabel("Epsilon Scale", fontsize=14)
+    plt.xlabel("$\lambda$", fontsize=14)
+    plt.ylabel("Epsilon Decay Rate", fontsize=14)
     plt.xticks(fontsize=14)
     plt.yticks(fontsize=14)
     plt.legend(fontsize=14)
@@ -70,17 +82,6 @@ def plot_acc_diff_decay_rates(
       linear_decay_path, quadratic_decay_path, log_decay_path, cos_decay_path (str):
       Paths to CSV files containing accuracy logs.
     """
-    def load_data(path: str, label: str):
-        df = pd.read_csv(path, sep=';')
-        max_task = df['after_learning_of_task'].max()
-
-        # Accuracy immediately after learning each task (diagonal)
-        diag = df[df['after_learning_of_task'] == df['tested_task']].sort_values('tested_task')['accuracy'].values
-
-        # Accuracy on each task after learning all tasks (final row block)
-        final = df[df['after_learning_of_task'] == max_task].sort_values('tested_task')['accuracy'].values
-
-        return diag, final, label
 
     # Load and process all decay data
     results = [
@@ -97,9 +98,9 @@ def plot_acc_diff_decay_rates(
     plt.figure(figsize=(8, 5))
     for diag, _, label in results:
         plt.plot(x, diag, marker='o', label=label)
-    plt.title("Accuracy After Learning Each Task", fontsize=14)
+    plt.title("Average Accuracy After Learning Each Task", fontsize=14)
     plt.xlabel("Task Index", fontsize=14)
-    plt.ylabel("Accuracy (%)", fontsize=14)
+    plt.ylabel("Average Accuracy (%)", fontsize=14)
     plt.xticks(x, fontsize=14)
     plt.yticks(fontsize=14)
     plt.grid(True)
@@ -112,9 +113,9 @@ def plot_acc_diff_decay_rates(
     plt.figure(figsize=(8, 5))
     for _, final, label in results:
         plt.plot(x, final, marker='o', label=label)
-    plt.title("Accuracy on All Tasks After Learning Final Task", fontsize=14)
+    plt.title("Average Accuracy on All Tasks After Learning Final Task", fontsize=14)
     plt.xlabel("Task Index", fontsize=14)
-    plt.ylabel("Accuracy (%)", fontsize=14)
+    plt.ylabel("Average Accuracy (%)", fontsize=14)
     plt.grid(True)
     plt.xticks(x, fontsize=14)
     plt.yticks(fontsize=14)
@@ -142,18 +143,6 @@ def plot_acc_diff_betas(
       beta_values (list of float): List of beta values to compare.
       get_csv_path (callable): Function that takes a beta value and returns the path to the corresponding CSV file.
     """
-
-    def load_data(path: str, label: str):
-        df = pd.read_csv(path, sep=';')
-        max_task = df['after_learning_of_task'].max()
-
-        # Accuracy immediately after learning each task (diagonal)
-        diag = df[df['after_learning_of_task'] == df['tested_task']].sort_values('tested_task')['accuracy'].values
-
-        # Accuracy on each task after learning all tasks (final row block)
-        final = df[df['after_learning_of_task'] == max_task].sort_values('tested_task')['accuracy'].values
-
-        return diag, final, label
 
     results = []
     for beta in beta_values:
@@ -193,12 +182,57 @@ def plot_acc_diff_betas(
     plt.tight_layout()
     plt.savefig(os.path.join(folder_path, "accuracy_after_final_task_beta.png"))
     plt.close()
+
+def load_and_plot_fgsm_results(folder_path: str, csv_path: str) -> None:
+    """
+    Loads FGSM evaluation results from a CSV file, plots the average accuracy versus FGSM epsilon for each model,
+    and saves the resulting plot to the specified folder.
+    Args:
+        folder_path (str): The directory where the plot image will be saved.
+        csv_path (str): The path to the CSV file containing FGSM evaluation results. The CSV should contain
+            columns 'model', 'epsilon', and 'avg_accuracy'.
+    Returns:
+        None
+    The function reads the CSV file, generates a line plot for each unique model showing how average accuracy
+    changes with FGSM perturbation size (epsilon), and saves the plot as 'fgsm_accuracy_comparison.png' in the
+    specified folder.
+    """
+
+    df_all = pd.read_csv(csv_path, sep=";")
+
+    # Plot results
+    plt.figure(figsize=(8, 6))
+        
+    # Define label mapping for legend
+    label_map = {
+        "standard": "HNET",
+        "mixup": "SHIELD"
+    }
+    for model_type in df_all["model"].unique():
+        df_model = df_all[df_all["model"] == model_type]
+        label = label_map.get(model_type, model_type)
+        plt.plot(df_model["epsilon"], df_model["avg_accuracy"],
+                    label=label, marker='o')
+        
+    plt.xlabel("FGSM Perturbation Size", fontsize=14)
+    plt.xticks(fontsize=14)
+    plt.yticks(fontsize=14)
+    plt.ylabel("Average Accuracy (%)", fontsize=14)
+    plt.title("Adversarial Accuracy vs. FGSM Epsilon", fontsize=14)
+    plt.grid(True)
+    plt.legend(fontsize=12)
+    plt.tight_layout()
+
+    # Save plot
+    plot_path = os.path.join(folder_path, "fgsm_accuracy_comparison.png")
+    plt.savefig(plot_path)
+    plt.close()
     
 
 if __name__ == "__main__":
     plot_decay_rates("./ablation_study/interval_mixup/decay_rates.png")
 
-    # Permuted MNIST
+    # Permuted MNIST decay rates
     plot_acc_diff_decay_rates(
         folder_path="./ablation_study/interval_mixup/permuted_mnist",
         linear_decay_path="./saved_models/permuted_mnist/mixup/linear/results.csv",
@@ -207,7 +241,7 @@ if __name__ == "__main__":
         cos_decay_path="./saved_models/permuted_mnist/mixup/cos/results.csv"
     )
 
-    # Split MiniImageNet
+    # Split MiniImageNet decay rates
     plot_acc_diff_decay_rates(
         folder_path="./ablation_study/interval_mixup/split_mini_imagenet",
         linear_decay_path="./saved_models/split_mini_imagenet/mixup/linear/results.csv",
@@ -216,7 +250,7 @@ if __name__ == "__main__":
         cos_decay_path="./saved_models/split_mini_imagenet/mixup/cos/results.csv"
     )
 
-    # Split-CIFAR100
+    # Split-CIFAR100 decay rates
     plot_acc_diff_decay_rates(
         folder_path="./ablation_study/interval_mixup/split_cifar_100",
         linear_decay_path="./saved_models/split_cifar_100/mixup/linear/results.csv",
@@ -227,8 +261,26 @@ if __name__ == "__main__":
 
     # Different beta values experiment
     plot_acc_diff_betas(
-    folder_path="./ablation_study/interval_mixup/split_cifar_100",  # or wherever you want to save plots
-    beta_values=[0.001, 0.01, 0.05, 0.1, 1.0],
-    get_csv_path=get_csv_path_for_beta
-)
+        folder_path="./ablation_study/interval_mixup/split_cifar_100",  # or wherever you want to save plots
+        beta_values=[0.001, 0.01, 0.05, 0.1, 1.0],
+        get_csv_path=get_csv_path_for_beta
+    )
+
+    # Permuted MNIST FGSM results
+    load_and_plot_fgsm_results(
+        folder_path="./ablation_study/fgsm/permuted_mnist",
+        csv_path="./ablation_study/fgsm/permuted_mnist/fgsm_accuracy_comparison.csv"
+    )
+
+    # Split CIFAR-100 FGSM results
+    load_and_plot_fgsm_results(
+        folder_path="./ablation_study/fgsm/split_cifar_100",
+        csv_path="./ablation_study/fgsm/split_cifar_100/fgsm_accuracy_comparison.csv"
+    )
+
+    # Split miniImageNet FGSM results
+    load_and_plot_fgsm_results(
+        folder_path="./ablation_study/fgsm/split_mini_imagenet",
+        csv_path="./ablation_study/fgsm/split_mini_imagenet/fgsm_accuracy_comparison.csv"
+    )
 
