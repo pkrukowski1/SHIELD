@@ -85,13 +85,15 @@ def plot_per_task_verified_accuracy(
     plt.bar(tasks, acc_mixup, width=width, label='Mixup (Verified)', color='salmon')
     plt.bar([t + width for t in tasks], acc_classical, width=width, label='Classical Accuracy', color='lightgreen')
 
-    plt.xlabel('Task ID', fontsize=12)
-    plt.ylabel('Accuracy [%]', fontsize=12)
-    plt.title('Per-Task Accuracy', fontsize=14)
-    plt.xticks(tasks, [str(t) for t in tasks])
+    plt.xlabel('Task ID', fontsize=16)
+    plt.ylabel('Accuracy [%]', fontsize=16)
+    plt.title('Per-Task Accuracy', fontsize=18)
+
+    plt.xticks(tasks, [str(t) for t in tasks], fontsize=14)
+    plt.yticks(fontsize=14)
     plt.ylim(y_min, y_max)
-    plt.legend()
-    plt.grid(axis='y')
+    plt.legend(fontsize=14, loc='best')
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
     plt.tight_layout()
 
     if save_path:
