@@ -3,3 +3,4 @@ number_of_tasks: 20
 train_only_on_first_ten_tasks: True
 use_augmentation: False
 validation_size: 1250
+input_shape: [224, 224, 3]

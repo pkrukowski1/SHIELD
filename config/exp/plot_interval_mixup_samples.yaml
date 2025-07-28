@@ -1,0 +1,8 @@
+run_func:
+    _target_: experiment.plot_interval_mixup_samples
+seed: 1
+log_dir: # set during runtime to automatically created dir
+no_hypercubes: 5
+no_points_within_hypercube: 10
+epsilon: 1.0
+mixup_alpha: 0.5

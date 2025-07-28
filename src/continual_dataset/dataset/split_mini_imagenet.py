@@ -26,7 +26,8 @@ class SplitMiniImageNet(Dataset):
                 use_data_augmentation: bool = False, 
                 validation_size: int = 100,
                 task_id: int = 0,
-                batch_size: int = 16) -> None:
+                batch_size: int = 16,
+                input_shape: Tuple[int] = [64,64,3]) -> None:
         """
         Initializes the SplitMiniImageNet dataset for continual learning.
 
@@ -38,6 +39,7 @@ class SplitMiniImageNet(Dataset):
             validation_size (int, optional): Number of validation samples per class. Default is 100.
             task_id (int, optional): Task identifier for continual learning. Default is 0.
             batch_size (int, optional): Batch size for data loaders. Default is 16.
+            input_shape (Tuple[int,int,int], optional): Shape of the input images (height, width, channels). Default is [64, 64, 3].
         """
         
         assert validation_size <= 250
@@ -55,13 +57,14 @@ class SplitMiniImageNet(Dataset):
         self._use_data_augmentation = use_data_augmentation
         self._validation_size = validation_size
         self._batch_size = batch_size
-        self._data["in_shape"] = [64, 64, 3]
+        self._data["in_shape"] = input_shape
+        h,w = input_shape[0], input_shape[1]
 
         self._test_transform = transforms.Compose(
             [
                 transforms.Resize(256),
                 transforms.CenterCrop(224),
-                transforms.Resize((64, 64)),
+                transforms.Resize((h, w)),
                 transforms.ToTensor(),
                 transforms.Lambda(lambda x: torch.permute(x, (1, 2, 0))),
             ]
@@ -73,7 +76,7 @@ class SplitMiniImageNet(Dataset):
                     transforms.RandomResizedCrop(224),
                     transforms.RandomHorizontalFlip(),
                     ImageNetPolicy(),
-                    transforms.Resize((64, 64)),
+                    transforms.Resize((h, w)),
                     transforms.ToTensor(),
                     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
                     transforms.Lambda(lambda x: torch.permute(x, (1, 2, 0))),

@@ -3,7 +3,7 @@ defaults:
   - dataset: split_mini_imagenet
   - model: resnet18
   - method: shield
-  - exp: inc_pert_size_fgsm
+  - exp: plot_interval_mixup_samples
 
 fabric:
   _target_: lightning.Fabric

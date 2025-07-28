@@ -1,7 +1,7 @@
 from continual_dataset.dataset.split_mini_imagenet import SplitMiniImageNet as SplitMiniImageNetData
 from continual_dataset.cl_dataset_abc import ContinualLearningTaskGenerator
 
-from typing import List
+from typing import List, Tuple
 
 class SplitMiniImageNet(ContinualLearningTaskGenerator):
     """
@@ -16,7 +16,8 @@ class SplitMiniImageNet(ContinualLearningTaskGenerator):
         use_augmentation: bool = False,
         validation_size: int = 2000,
         train_only_on_first_ten_tasks: bool = True,
-        batch_size: int = 16
+        batch_size: int = 16,
+        input_shape: Tuple[int] = [64, 64, 3]
     ) -> None:
         """
         Initialize the SplitMiniImageNet generator.
@@ -28,6 +29,7 @@ class SplitMiniImageNet(ContinualLearningTaskGenerator):
             train_only_on_first_ten_tasks (bool, optional): If true, a training is interrupted after
                 learning first ten tasks as in https://arxiv.org/pdf/2402.11196
             batch_size (int, optional): Batch size.
+            input_shape (Tuple[int,int,int], optional): Shape of the input images (height, width, channels). Defaults to [64, 64, 3].
 
         Attributes:
             number_of_tasks (int): Number of tasks to split the dataset into.
@@ -36,6 +38,7 @@ class SplitMiniImageNet(ContinualLearningTaskGenerator):
             train_only_on_first_ten_tasks (bool, optional): If true, a training is interrupted after
                 learning first ten tasks as in https://arxiv.org/pdf/2402.11196
             batch_size (int, optional): Batch size.
+            input_shape (Tuple[int,int,int], optional): Shape of the input images (height, width, channels).
         """
         super().__init__()
 
@@ -46,6 +49,7 @@ class SplitMiniImageNet(ContinualLearningTaskGenerator):
 
         self.batch_size = batch_size
         self.no_classes_per_task = 100 // self.number_of_tasks
+        self.input_shape = input_shape
 
     def _generate_task_variations(self) -> None:
         """
@@ -80,7 +84,8 @@ class SplitMiniImageNet(ContinualLearningTaskGenerator):
                     use_data_augmentation=self.use_augmentation,
                     validation_size=no_validation_samples_per_class,
                     task_id=i,
-                    batch_size=self.batch_size
+                    batch_size=self.batch_size,
+                    input_shape=self.input_shape
                 )
             )
 
