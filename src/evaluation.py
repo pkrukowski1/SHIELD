@@ -157,7 +157,7 @@ def plot_acc_diff_betas(
     plt.figure(figsize=(8, 5))
     for diag, _, label in results:
         plt.plot(x, diag, marker='o', label=label)
-    plt.title("Accuracy After Learning Each Task", fontsize=14)
+    plt.title("Average Accuracy After Learning Each Task", fontsize=14)
     plt.xlabel("Task Index", fontsize=14)
     plt.ylabel("Average Accuracy (%)", fontsize=14)
     plt.xticks(x, fontsize=14)
@@ -172,7 +172,7 @@ def plot_acc_diff_betas(
     plt.figure(figsize=(8, 5))
     for _, final, label in results:
         plt.plot(x, final, marker='o', label=label)
-    plt.title("Accuracy on All Tasks After Learning Final Task", fontsize=14)
+    plt.title("Average Accuracy on All Tasks After Learning Final Task", fontsize=14)
     plt.xlabel("Task Index", fontsize=14)
     plt.ylabel("Average Accuracy (%)", fontsize=14)
     plt.xticks(x, fontsize=14)
@@ -225,6 +225,52 @@ def load_and_plot_fgsm_results(folder_path: str, csv_path: str) -> None:
 
     # Save plot
     plot_path = os.path.join(folder_path, "fgsm_accuracy_comparison.png")
+    plt.savefig(plot_path)
+    plt.close()
+
+
+def load_and_plot_pgd_results(folder_path: str, csv_path: str) -> None:
+    """
+    Loads PGD evaluation results from a CSV file, plots the average accuracy versus number of gradient steps for each model,
+    and saves the resulting plot to the specified folder.
+    Args:
+        folder_path (str): The directory where the plot image will be saved.
+        csv_path (str): The path to the CSV file containing PGD evaluation results. The CSV should contain
+            columns 'model', 'steps', and 'avg_accuracy'.
+    Returns:
+        None
+    The function reads the CSV file, generates a line plot for each unique model showing how average accuracy
+    changes with PGD gradient steps, and saves the plot as 'pgd_accuracy_comparison.png' in the
+    specified folder.
+    """
+
+    df_all = pd.read_csv(csv_path, sep=";")
+
+    # Plot results
+    plt.figure(figsize=(8, 6))
+        
+    # Define label mapping for legend
+    label_map = {
+        "standard": "HNET",
+        "mixup": "SHIELD"
+    }
+    for model_type in df_all["model"].unique():
+        df_model = df_all[df_all["model"] == model_type]
+        label = label_map.get(model_type, model_type)
+        plt.plot(df_model["steps"], df_model["avg_accuracy"],
+                    label=label, marker='o')
+        
+    plt.xlabel("PGD Steps", fontsize=14)
+    plt.xticks(fontsize=14)
+    plt.yticks(fontsize=14)
+    plt.ylabel("Average Accuracy (%)", fontsize=14)
+    plt.title("Adversarial Accuracy vs. PGD Steps", fontsize=14)
+    plt.grid(True)
+    plt.legend(fontsize=12)
+    plt.tight_layout()
+
+    # Save plot
+    plot_path = os.path.join(folder_path, "pgd_accuracy_comparison.png")
     plt.savefig(plot_path)
     plt.close()
     
@@ -282,5 +328,24 @@ if __name__ == "__main__":
     load_and_plot_fgsm_results(
         folder_path="./ablation_study/fgsm/split_mini_imagenet",
         csv_path="./ablation_study/fgsm/split_mini_imagenet/fgsm_accuracy_comparison.csv"
+    )
+
+
+     # Permuted MNIST PGD results
+    load_and_plot_pgd_results(
+        folder_path="./ablation_study/pgd/permuted_mnist",
+        csv_path="./ablation_study/pgd/permuted_mnist/pgd_accuracy_comparison.csv"
+    )
+
+    # Split CIFAR-100 PGD results
+    load_and_plot_pgd_results(
+        folder_path="./ablation_study/pgd/split_cifar_100",
+        csv_path="./ablation_study/pgd/split_cifar_100/pgd_accuracy_comparison.csv"
+    )
+
+    # Split miniImageNet PGD results
+    load_and_plot_pgd_results(
+        folder_path="./ablation_study/pgd/split_mini_imagenet",
+        csv_path="./ablation_study/pgd/split_mini_imagenet/pgd_accuracy_comparison.csv"
     )
 
