@@ -5,6 +5,8 @@
 
 📄 **[Read the full paper on arXiv](https://arxiv.org/abs/2506.08255)**  
 
+![Method Overview image](shield_teaser.png)
+
 ---
 
 ## 🧭 Table of Contents
@@ -114,19 +116,19 @@ To launch a default experiment with Hydra:
 You can also launch predefined experiments for specific datasets:
    ```bash
    # For Permuted MNIST
-   ./scripts/permuted_mnist/train.sh
+   ./scripts/permuted_mnist/train/train.sh
 
    # For Rotated MNIST
-   ./scripts/rotated_mnist/train.sh
+   ./scripts/rotated_mnist/train/train.sh
 
    # For Split CIFAR-100
-   ./scripts/split_cifar_100/train.sh
+   ./scripts/split_cifar_100/train/train.sh
 
    # For Split miniImageNet
-   ./scripts/split_mini_imagenet/train.sh
+   ./scripts/split_mini_imagenet/train/train.sh
 
    # For TinyImageNet
-   ./scripts/tiny_imagenet/train.sh
+   ./scripts/tiny_imagenet/train/train.sh
    ```
 
 ---
