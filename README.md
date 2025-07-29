@@ -70,7 +70,7 @@ The architecture and training loop are designed to be **modular, scalable**, and
 
 ## 🔐 Robustness Evaluation
 
-- Evaluated under **AutoAttack**, **PGD**, **FGSM**, and on clean samples.
+- Evaluated under **[AutoAttack](https://arxiv.org/abs/1909.08383)**, **[PGD](https://arxiv.org/abs/1706.06083)**, **[FGSM](https://arxiv.org/pdf/1412.6572)**, and on clean samples.
 - SHIELD with **Interval MixUp** improves certified accuracy while maintaining low forgetting.
 - Outperforms all baselines in average robust accuracy and BWT -- backward transfer (on origina samples) across all benchmarks.
 
