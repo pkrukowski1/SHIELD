@@ -5,13 +5,25 @@
 
 📄 **[Read the full paper on arXiv](https://arxiv.org/abs/2506.08255)**  
 
+![Method Overview image](shield_teaser.png)
+
+#### What is the goal of SHIELD?
+
+Continual learning under adversarial conditions remains an open problem, as existing methods often compromise either robustness, scalability, or both. We propose a novel framework that integrates **Interval Bound Propagation (IBP)** with a **hypernetwork-based architecture** to enable **certifiably robust continual learning** across sequential tasks.
+
+**SHIELD** generates task-specific model parameters via a shared hypernetwork conditioned solely on compact task embeddings, eliminating the need for replay buffers or full model copies and enabling efficient over time. To further enhance robustness, we introduce **Interval MixUp**, a novel training strategy that blends virtual examples represented as $\ell_{\infty}$ balls centered around MixUp points. Leveraging interval arithmetic, this technique guarantees certified robustness while mitigating the wrapping effect, resulting in smoother decision boundaries.
+
+#### Why would I use SHIELD?
+
+SHIELD is evaluated under strong white-box adversarial attacks, including PGD and AutoAttack, across multiple benchmarks. It consistently outperforms existing robust continual learning methods, achieving state-of-the-art Average Accuracy while maintaining both scalability and certification. These results represent a significant step toward practical and theoretically grounded continual learning in adversarial settings.
+
 ---
 
 ## 🧭 Table of Contents
 
-- [Abstract](#abstract)
+- [Benchmarks](#benchmarks)
 - [Method Overview](#method-overview)
-- [Results](#results)
+- [Robustness Evaluation](#robustness-evaluation)
 - [Getting Started](#getting-started)
   - [Setup](#setup)
   - [Launching Experiments](#launching-experiments)
@@ -23,20 +35,17 @@
 
 ---
 
-## 🧠 Abstract
-
-Continual learning under adversarial conditions remains a major challenge, as most existing methods either lack robustness guarantees or fail to scale to complex settings. In this work, we propose a novel framework that combines **Interval Bound Propagation (IBP)** with a **hypernetwork-based continual learning architecture**, enabling **certified robustness against adversarial attacks** across sequential tasks.
-
-Our approach generates task-specific model parameters via a shared hypernetwork, conditioned only on task embeddings—a design that avoids storing previous task data or full model copies and remains parameter-efficient over time.
-
-To further boost certified performance, we introduce **Interval MixUp**, a new training strategy that blends virtual example interpolation with provable guarantees using interval arithmetic. This allows us to maintain robustness even on interpolated synthetic inputs.
+## 📈 Benchmarks
 
 We evaluate SHIELD on a diverse set of benchmarks:
-- Permuted MNIST
-- Rotated MNIST
-- Split CIFAR-100
-- Split miniImageNet
-- TinyImageNet
+
+|Dataset|No. tasks|No. classes per task|
+|------------------|--|--|
+|Permuted MNIST    |10|10|
+|Rotated MNIST     |10|10|
+|Split CIFAR-100   |10|10|
+|Split miniImageNet|10|10|
+|TinyImageNet      |40|5 |
 
 SHIELD achieves **state-of-the-art or highly competitive performance**, sometimes **doubling the robust accuracy** of prior methods under strong attacks such as **AutoAttack**. These results underscore the scalability and effectiveness of our approach for real-world, adversarially robust continual learning.
 
@@ -59,21 +68,71 @@ The architecture and training loop are designed to be **modular, scalable**, and
 
 ---
 
-## 📊 Results
+## 🔐 Robustness Evaluation
 
-### 📈 Datasets
-
-- **Permuted MNIST** – 10 tasks x 10 classes
-- **Rotated MNIST** – 10 tasks x 10 classes
-- **Split CIFAR-100** – 10 tasks × 10 classes  
-- **Split miniImageNet** – 10 tasks × 10 classes  
-- **TinyImageNet** – 40 tasks × 5 classes
-
-### 🔐 Robustness Evaluation
-
-- Evaluated under **AutoAttack**, **PGD**, **FGSM**, and on clean samples.
+- Evaluated under **[AutoAttack](https://arxiv.org/abs/1909.08383)**, **[PGD](https://arxiv.org/abs/1706.06083)**, **[FGSM](https://arxiv.org/pdf/1412.6572)**, and on clean samples.
 - SHIELD with **Interval MixUp** improves certified accuracy while maintaining low forgetting.
-- Outperforms all baselines in average robust accuracy and backward transfer (BWT) across all benchmarks.
+- Outperforms all baselines in average robust accuracy and BWT -- backward transfer (on original samples) across all benchmarks.
+
+**Permuted MNIST**
+
+|Method| AutoAttack | PGD | FGSM | Original samples | BWT |
+|------|---|---|---|---|---|
+|SGD | 14.1 | 15.4 | 21.8 | 36.8 | -0.66 |
+|SI | 14.3 | 16.5 | 22.3 | 36.9 | -0.67 |
+|A-GEM | 14.1 | 19.7 | 22.9 | 48.4 | -0.54 |
+|EWC | 39.4 | 43.1 | 50.0 | 84.9 | -0.12 |
+|GEM | 12.1 | 75.5 | 72.8 | 96.4 | -0.01 |
+|OGD | 19.7 | 24.1 | 26.0 | 46.8 | -0.57 |
+|GPM | 70.4 |  72.9 | 65.7 | 97.2 | -0.01 |
+|DGP | **81.6** | 81.2 | 75.8 | 97.6 | -0.01 |
+|**SHIELD** | 80.91 | 90.11 | 78.87 | 93.58 | **0.02** | 
+|**SHIELD-IM**| 80.08 | **97.44** | **79.09** | **97.96** | -0.05 |
+
+**Rotated MNIST**
+
+|Method| AutoAttack | PGD | FGSM | Original samples | BWT |
+|------|---|---|---|---|---|
+|SGD | 14.1 | 9.9 | 20.4 | 32.3 | -0.71 |
+|SI | 13.9 | 15.3 | 20.1 | 33.0 | -0.72 |
+|A-GEM | 14.1 | 21.6 | 24.8 | 45.4 | -0.57 |
+|EWC | 45.1 | 49.5 | 46.5 | 80.7 | -0.18 |
+|GEM | 11.9 | 76.5 | 74.4 | 96.7 | -0.01 |
+|OGD | 19.7 | 23.8 | 23.8 | 48.0 | -0.557 |
+|GPM | 68.8 | 71.5 | 65.9 | 97.1 | -0.01 |
+|DGP | 81.6 | 82.6 | 78.6 | 98.1 | **-0.00** |
+|**SHIELD** | **85.64** | 92.94 | **83.82** | 95.62 | -0.03 | 
+|**SHIELD-IM**| 82.91 | **97.88** | 83.03 | **98.32** | -0.08 |
+
+**Split CIFAR-100**
+
+|Method| AutoAttack | PGD | FGSM | Original samples | BWT |
+|------|---|---|---|---|---|
+|SGD | 10.3 | 12.8 | 19.4 | 46.5 | -0.49 |
+|SI | 13.0 | 15.2 | 19.8 | 45.4 | -0.48 |
+|A-GEM | 12.6 | 12.9 | 20.7 | 40.6 | -0.48 |
+|EWC | 12.6 | 23.2 | 30.5 | 56.8 | -0.35 |
+|GEM | 21.2 | 19.4 | 47.7 | 60.6 | -0.13 |
+|OGD | 11.8 | 14.1 | 18.9 | 44.2 | -0.50 |
+|GPM | 34.4 | 36.6 | **53.7** | 58.2 | **-0.10** |
+|DGP | 36.6 | 39.2 | 48.0 | 67.2 | -0.13 |
+| **SHIELD** | 60.91 | 59.77 | 45.37 | 64.24 | -0.34 |
+| **SHIELD-IM** | **63.08** | **62.39** | 46.48 | **67.45** | -0.41 |
+
+**Split miniImageNet**
+
+|Method| AutoAttack | PGD | FGSM | Original samples | BWT |
+|------|---|---|---|---|---|
+|SGD   | 16.0 | 18.0 | 20.0 | 28.0 | -0.24 |
+|SI    | 15.5 | 17.5 | 19.0 | 26.5 | -0.27 |
+|A-GEM | 14.0 | 15.5 | 17.0 | 25.0 | -0.28 |
+|EWC | 15.0 | 17.0 | 18.5 | 27.0 | -0.25 |
+|GEM | 17.0 | 19.0 | 21.0 | 30.0 | -0.20 |
+|OGD | 13.5 | 15.0 | 17.0 | 25.5 | -0.29 |
+|GPM | 21.5 | 24.5 | 26.5 | 34.0 | -0.12 |
+|DGP | 27.5 | 30.0 | 32.0 | 41.0 | **-0.05** |
+| **SHIELD** | 56.22 | 56.8 | 53.08 | 59.52 | -0.16 |
+| **SHIELD-IM** | **57.9** | **58.47** | 54.1 | 62.67 | -0.18 |
 
 ---
 
@@ -114,19 +173,19 @@ To launch a default experiment with Hydra:
 You can also launch predefined experiments for specific datasets:
    ```bash
    # For Permuted MNIST
-   ./scripts/permuted_mnist/train.sh
+   ./scripts/permuted_mnist/train/train.sh
 
    # For Rotated MNIST
-   ./scripts/rotated_mnist/train.sh
+   ./scripts/rotated_mnist/train/train.sh
 
    # For Split CIFAR-100
-   ./scripts/split_cifar_100/train.sh
+   ./scripts/split_cifar_100/train/train.sh
 
    # For Split miniImageNet
-   ./scripts/split_mini_imagenet/train.sh
+   ./scripts/split_mini_imagenet/train/train.sh
 
    # For TinyImageNet
-   ./scripts/tiny_imagenet/train.sh
+   ./scripts/tiny_imagenet/train/train.sh
    ```
 
 ---
