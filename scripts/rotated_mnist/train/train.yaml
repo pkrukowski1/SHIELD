@@ -6,7 +6,7 @@ metric:
 parameters:
 
   dataset:
-    value: permuted_mnist
+    value: rotated_mnist
   method:
     value: shield
   model:
