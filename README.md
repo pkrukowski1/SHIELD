@@ -5,7 +5,7 @@
 
 📄 **[Read the full paper on arXiv](https://arxiv.org/abs/2506.08255)**  
 
-![Method Overview image](shield_teaser.png)
+![Method Overview image](./img/shield_teaser.png)
 
 #### What is the goal of SHIELD?
 
