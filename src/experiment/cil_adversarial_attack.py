@@ -16,10 +16,14 @@ from utils.handy_functions import prepare_weights
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
 
+
 def infer_predictions_cil(model: nn.Module, input_tensor: torch.Tensor, target_tensor: torch.Tensor,
-                           num_tasks: int, device: torch.device, epsilon: float) -> Tuple[torch.Tensor, float]:
+                           task_tensor: torch.Tensor, num_tasks: int, device: torch.device, epsilon: float
+                           ) -> Tuple[torch.Tensor, float, torch.Tensor, torch.Tensor]:
     """
-    Performs task-inference using minimum entropy and returns predicted labels and accuracy.
+    Performs task inference using minimum entropy and computes accuracy
+    only when the task is correctly inferred. Returns predictions, accuracy,
+    inferred task IDs, and a mask indicating which samples had correct task inference.
     """
     with torch.no_grad():
         logits_all = []
@@ -28,27 +32,38 @@ def infer_predictions_cil(model: nn.Module, input_tensor: torch.Tensor, target_t
         for tid in range(num_tasks):
             logits, _ = model(x=input_tensor, task_id=tid, epsilon=epsilon)
             prob = F.softmax(logits, dim=1)
-            entropy = -torch.sum(prob * torch.log(prob + 1e-8), dim=1)  # avoid log(0)
+            entropy = -torch.sum(prob * torch.log(prob + 1e-8), dim=1)
             logits_all.append(logits)
             entropy_all.append(entropy)
 
-        logits_all = torch.stack(logits_all)
-        entropy_all = torch.stack(entropy_all)
+        logits_all = torch.stack(logits_all)       # [num_tasks, batch, num_classes]
+        entropy_all = torch.stack(entropy_all)     # [num_tasks, batch]
 
-        inferred_task_ids = entropy_all.argmin(dim=0)
+        inferred_task_ids = entropy_all.argmin(dim=0)        # [batch]
+        correct_task_mask = (inferred_task_ids == task_tensor)
 
-        preds = torch.empty_like(target_tensor, device=device)
-        for i in range(input_tensor.size(0)):
-            pred_logits = logits_all[inferred_task_ids[i], i]
-            preds[i] = pred_logits.argmax()
+        preds = torch.full_like(target_tensor, fill_value=-1, device=device)
+        correct = 0
+        total = input_tensor.size(0)
 
-        accuracy = 100.0 * (preds == target_tensor).float().mean().item()
-    return preds, accuracy
+        for i in range(total):
+            if correct_task_mask[i]:
+                pred_logits = logits_all[inferred_task_ids[i], i]
+                preds[i] = pred_logits.argmax()
+                if preds[i] == target_tensor[i]:
+                    correct += 1
+            # else: zero accuracy by default
+
+        accuracy = 100.0 * correct / total
+        return preds, accuracy, inferred_task_ids, correct_task_mask
+
 
 def experiment(config: DictConfig) -> None:
     """
     Runs all defined adversarial attacks and computes clean and adversarial accuracy
     under the Class-Incremental Learning (CIL) setting, where task identity is unknown.
+    Accuracy is only counted when task inference is correct.
+    Adversarial accuracy is computed only for clean-correct predictions with correct task.
     """
     number_of_tasks = config.dataset.number_of_tasks
 
@@ -78,29 +93,43 @@ def experiment(config: DictConfig) -> None:
             test_input = dataset.input_to_torch_tensor(inputs, fabric.device, mode="inference")
             test_target = dataset.output_to_torch_tensor(targets, fabric.device, mode="inference")
             test_target = test_target.max(dim=1)[1]
+            task_tensor = torch.full_like(test_target, fill_value=task_id)
 
             # ----- CLEAN INFERENCE (CIL) -----
-            _, clean_acc = infer_predictions_cil(
+            clean_preds, clean_acc, _, correct_task_mask = infer_predictions_cil(
                 model=model,
                 input_tensor=test_input,
                 target_tensor=test_target,
+                task_tensor=task_tensor,
                 num_tasks=number_of_tasks,
                 device=fabric.device,
                 epsilon=config.exp.epsilon
             )
+
+            clean_correct_mask = (clean_preds == test_target) & correct_task_mask
 
             # ----- ADVERSARIAL INFERENCE (CIL) -----
-            attack = instantiate(attack_cfg, model=model, task_id=task_id, device=fabric.device)
-            adv_input = attack.forward(test_input, test_target)
+            if clean_correct_mask.sum().item() == 0:
+                adv_acc = 0.0
+            else:
+                filtered_input = test_input[clean_correct_mask]
+                filtered_target = test_target[clean_correct_mask]
+                filtered_task = task_tensor[clean_correct_mask]
 
-            _, adv_acc = infer_predictions_cil(
-                model=model,
-                input_tensor=adv_input,
-                target_tensor=test_target,
-                num_tasks=number_of_tasks,
-                device=fabric.device,
-                epsilon=config.exp.epsilon
-            )
+                attack = instantiate(attack_cfg, model=model, task_id=task_id, device=fabric.device)
+                adv_input = attack.forward(filtered_input, filtered_target)
+
+                _, adv_acc_filtered, _, _ = infer_predictions_cil(
+                    model=model,
+                    input_tensor=adv_input,
+                    target_tensor=filtered_target,
+                    task_tensor=filtered_task,
+                    num_tasks=number_of_tasks,
+                    device=fabric.device,
+                    epsilon=config.exp.epsilon
+                )
+
+                adv_acc = adv_acc_filtered * (filtered_input.size(0) / test_input.size(0))
 
             log.info(f"[{attack_name}] Task {task_id} | Clean Acc: {clean_acc:.2f}%, Adversarial Acc: {adv_acc:.2f}%")
 
@@ -118,6 +147,9 @@ def experiment(config: DictConfig) -> None:
             "clean_accuracy": avg_clean,
             "adversarial_accuracy": avg_adv
         })
+
+        # Log final results to console
+        log.info(f"[{attack_name}] FINAL AVERAGE | Clean Acc: {avg_clean:.2f}%, Adversarial Acc: {avg_adv:.2f}%")
 
         # Save CSV
         results_df = pd.DataFrame(results)
