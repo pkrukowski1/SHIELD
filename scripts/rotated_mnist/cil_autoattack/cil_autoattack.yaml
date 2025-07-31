@@ -1,0 +1,74 @@
+method: grid
+metric:
+  name: avg_acc
+  goal: maximize
+
+parameters:
+
+  dataset:
+    value: rotated_mnist
+  method:
+    value: shield
+  model:
+    value: mlp
+  exp:
+    value: cil_adversarial_attack
+
+  # Dataset (fixed)
+  dataset._target_:
+    value: continual_dataset.RotatedMNIST
+  dataset.number_of_tasks:
+    value: 10
+  dataset.validation_size:
+    value: 5000
+  dataset.padding: 
+    value: 2
+  
+  # Experiment setup
+  exp.seed:
+    value: 1
+  exp.epsilon:
+    value: 0.01
+
+  exp.attack.auto_attack._target_:
+    value: attack.AutoAttack
+  exp.attack.auto_attack.eps:
+    value: 0.07843137254
+  exp.attack.auto_attack.total_no_classes:
+    value: 100
+  exp.attack.auto_attack.input_shape:
+    value: [1,32,32]
+
+  exp.path_to_weights: 
+    value: ./saved_models/rotated_mnist/full_architecture_with_mixup/0
+
+  # Fabric setup
+  fabric.accelerator:
+    value: gpu
+
+  # Model
+  model._target_:
+    value: model.HyperNetWithMLP
+  model.no_classes_per_task:
+    value: 10
+  model.activation_function._target_:
+    value: torch.nn.ReLU
+  model.hnet_hidden_layers:
+    value: [100, 100]
+  model.hnet_embedding_size:
+    value: 96
+
+
+  # W&B logging
+  wandb.entity:
+    value: ${oc.env:WANDB_ENTITY}
+  wandb.project:
+    value: ${oc.env:WANDB_PROJECT}
+
+command:
+  - ${env}
+  - python
+  - src/main.py
+  - --config-name
+  - shield.yaml
+  - ${args_no_hyphens}

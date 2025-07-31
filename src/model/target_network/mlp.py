@@ -151,6 +151,8 @@ class IntervalMLP(nn.Module, MainNetInterface):
         if weights is None:
            weights = self.weights
 
+        x = x.flatten(start_dim=1)
+
         w_weights = []
         b_weights = []
 
