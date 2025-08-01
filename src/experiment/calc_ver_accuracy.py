@@ -6,6 +6,7 @@ import wandb
 from typing import List, Optional
 from omegaconf import DictConfig
 from hydra.utils import instantiate
+import csv
 
 from utils.fabric import setup_fabric
 from model.model_abc import CLModuleABC
@@ -99,6 +100,14 @@ def plot_per_task_verified_accuracy(
     if save_path:
         plt.savefig(save_path, dpi=300)
         plt.close()
+
+        # Save to CSV
+        csv_path = save_path.replace(".png", ".csv")
+        with open(csv_path, mode="w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["Task ID", "No Mixup (Verified)", "Mixup (Verified)", "Classical Accuracy"])
+            for i, task_id in enumerate(tasks):
+                writer.writerow([task_id, acc_nomixup[i], acc_mixup[i], acc_classical[i]])
     else:
         plt.show()
 
