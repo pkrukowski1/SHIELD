@@ -1,4 +1,4 @@
-## `Continual learning datasets`
+## `continual_learning_datasets`
 
 This module provides support for a variety of continual learning benchmarks used in the SHIELD project.
 

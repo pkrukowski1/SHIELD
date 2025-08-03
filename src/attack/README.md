@@ -1,4 +1,4 @@
-## `Attacks`  
+## `attack`  
 
 This directory contains adversarial attack implementations used in the SHIELD project:
 
