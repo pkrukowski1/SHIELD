@@ -44,7 +44,7 @@ We evaluate SHIELD on a diverse set of benchmarks:
 |Permuted MNIST    |10|10|
 |Rotated MNIST     |10|10|
 |Split CIFAR-100   |10|10|
-|Split miniImageNet|10|10|
+|Split miniImageNet|10|5|
 |TinyImageNet      |40|5 |
 
 SHIELD achieves **state-of-the-art or highly competitive performance**, sometimes **doubling the robust accuracy** of prior methods under strong attacks such as **AutoAttack**. These results underscore the scalability and effectiveness of our approach for real-world, adversarially robust continual learning.
@@ -68,9 +68,9 @@ The architecture and training loop are designed to be **modular, scalable**, and
 
 ---
 
-## 🔐 Robustness Evaluation
+## 🔐 Robustness Evaluation (Task-Incremenal Learning)
 
-- Evaluated under **[AutoAttack](https://arxiv.org/abs/1909.08383)**, **[PGD](https://arxiv.org/abs/1706.06083)**, **[FGSM](https://arxiv.org/pdf/1412.6572)**, and on clean samples.
+- Evaluated under **[AutoAttack](https://arxiv.org/abs/1909.08383)**, **[PGD](https://arxiv.org/abs/1706.06083)**, **[FGSM](https://arxiv.org/pdf/1412.6572)**, and on original samples.
 - SHIELD with **Interval MixUp** improves certified accuracy while maintaining low forgetting.
 - Outperforms all baselines in average robust accuracy and BWT -- backward transfer (on original samples) across all benchmarks.
 
@@ -121,18 +121,19 @@ The architecture and training loop are designed to be **modular, scalable**, and
 
 **Split miniImageNet**
 
-|Method| AutoAttack | PGD | FGSM | Original samples | BWT |
-|------|---|---|---|---|---|
-|SGD   | 16.0 | 18.0 | 20.0 | 28.0 | -0.24 |
-|SI    | 15.5 | 17.5 | 19.0 | 26.5 | -0.27 |
-|A-GEM | 14.0 | 15.5 | 17.0 | 25.0 | -0.28 |
-|EWC | 15.0 | 17.0 | 18.5 | 27.0 | -0.25 |
-|GEM | 17.0 | 19.0 | 21.0 | 30.0 | -0.20 |
-|OGD | 13.5 | 15.0 | 17.0 | 25.5 | -0.29 |
-|GPM | 21.5 | 24.5 | 26.5 | 34.0 | -0.12 |
-|DGP | 27.5 | 30.0 | 32.0 | 41.0 | **-0.05** |
-| **SHIELD** | 56.22 | 56.8 | 53.08 | 59.52 | -0.16 |
-| **SHIELD-IM** | **57.9** | **58.47** | 54.1 | 62.67 | -0.18 |
+| Method        | AutoAttack | PGD       | FGSM     | Original samples | BWT       |
+| ------------- | ---------- | --------- | -------- | ---------------- | --------- |
+| SGD           | 20.5       | 22.0      | 23.5     | 30.8             | -0.24     |
+| SI            | 20.4       | 21.3      | 22.7     | 28.1             | -0.27     |
+| A-GEM         | 19.0       | 19.8      | 21.2     | 29.2             | -0.28     |
+| EWC           | 21.3       | 22.7      | 24.3     | 29.9             | -0.25     |
+| GEM           | 22.3       | 23.8      | 25.4     | 31.8             | -0.20     |
+| OGD           | 17.9       | 18.8      | 20.7     | 29.6             | -0.29     |
+| GPM           | 26.3       | 27.1      | 28.8     | 36.8             | -0.12     |
+| DGP           | 32.1       | 33.8      | 35.5     | 44.8             | **-0.05** |
+| **SHIELD**    | 56.22      | 56.8      | 53.08    | 59.52            | -0.16     |
+| **SHIELD-IM** | **57.9**   | **58.47** | **54.1** | **62.67**        | -0.18     |
+
 
 ---
 
