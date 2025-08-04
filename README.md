@@ -143,7 +143,7 @@ The architecture and training loop are designed to be **modular, scalable**, and
 
 1. **Clone the repository**  
    ```bash
-   git clone https://github.com/gmum/SHIELD.git
+   git clone https://github.com/pkrukowski1/SHIELD
    cd SHIELD
 
 2. **Create and activate the conda environment**
