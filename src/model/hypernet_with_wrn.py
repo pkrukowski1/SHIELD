@@ -1,4 +1,4 @@
-from model.target_network.resnet18 import IntervalResNet18
+from model.target_network.wrn import IntervalWRN
 from model.model_abc import CLModuleABC
 
 from typing import Tuple
@@ -8,9 +8,9 @@ import torch.nn as nn
 from hypnettorch.hnets import HMLP
 
 
-class HyperNetWithResNet18(CLModuleABC):
+class HyperNetWithWRN(CLModuleABC):
     """
-    A hypernetwork wrapper that generates the parameters of ResNet-18 
+    A hypernetwork wrapper that generates the parameters of WRN-d-k 
     target network using a conditional hypernetwork (HMLP).
 
     This class is designed for continual learning setups, where a separate 
@@ -18,7 +18,7 @@ class HyperNetWithResNet18(CLModuleABC):
     a hypernetwork conditioned on task embeddings.
 
     Attributes:
-        target_network (IntervalResNet18): The target network that receives weights 
+        target_network (IntervalWRN): The target network that receives weights 
             from the hypernetwork.
         hnet (HMLP): Hypernetwork that generates the weights of the target network 
             conditioned on the task.
@@ -27,6 +27,8 @@ class HyperNetWithResNet18(CLModuleABC):
     def __init__(self, 
                  in_shape: Tuple[int, int, int],
                  no_classes_per_task: int,
+                 n: int,
+                 k: int,
                  activation_function: nn.Module,
                  hnet_hidden_layers: Tuple[int, ...],
                  num_feature_maps: Tuple[int,int,int,int],
@@ -38,6 +40,8 @@ class HyperNetWithResNet18(CLModuleABC):
         Args:
             in_shape (Tuple[int, int, int]): Shape of the input images (C, H, W).
             no_classes_per_task (int): Number of output classes per task.
+            n (int): Number of residual blocks in a group.
+            k (int): Widening factor (multiplicative factor for the number of features in a convolutional layer)
             activation_function (nn.Module): Activation function used in the hypernetwork.
             hnet_hidden_layers (Tuple[int, ...]): Sizes of the hidden layers in the hypernetwork.
             num_feature_maps (Tuple[int,int,int,int]): Number of feature maps for each ResNet block group,
@@ -47,18 +51,15 @@ class HyperNetWithResNet18(CLModuleABC):
         """
         super().__init__()
 
-        self.target_network = IntervalResNet18(
+        self.target_network = IntervalWRN(
                 in_shape=in_shape,
-                use_bias=False,
-                use_fc_bias=True,
-                bottleneck_blocks=False,
                 num_classes=no_classes_per_task,
+                n=n,
+                k=k,
                 num_feature_maps=num_feature_maps,
-                blocks_per_group=[2, 2, 2, 2],
                 no_weights=True,
                 use_batch_norm=True,
-                projection_shortcut=True,
-                bn_track_stats=False,
+                bn_track_stats=False
             )
 
         self.hnet = HMLP(
