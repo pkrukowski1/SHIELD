@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from warnings import warn
-from typing import Tuple, List, Iterable
+from typing import Tuple, List, Iterable, Optional
 
 from hypnettorch.mnets.classifier_interface import Classifier
 from hypnettorch.mnets.mnet_interface import MainNetInterface
@@ -627,14 +627,15 @@ class IntervalResNet18(Classifier):
 
         return mu, eps
 
-    def distillation_targets(self) -> List:
+    def distillation_targets(self) -> Optional[List[torch.Tensor]]:
         """
         Returns a list of statistics from all batch normalization layers for use as distillation targets.
         If `self.hyper_shapes_distilled` is None, returns None. Otherwise, iterates through all batch normalization
         layers stored in `self._batchnorm_layers`, collects their statistics using the `get_stats()` method, and
         returns them as a single flattened list.
         Returns:
-            List: A list containing the statistics from each batch normalization layer, or None if distillation is not enabled.
+            Optional[List[torch.Tensor]]: A list containing the statistics from each batch normalization layer, 
+                or None if distillation is not enabled.
         """
         
         if self.hyper_shapes_distilled is None:

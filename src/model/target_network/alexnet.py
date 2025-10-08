@@ -241,7 +241,7 @@ class IntervalAlexNet(Classifier):
                 mu, eps = layer.forward(mu, eps, device=device)
         return mu, eps
 
-    def distillation_targets(self):
+    def distillation_targets(self) -> None:
         """
         Returns targets to be distilled after training.
 

@@ -15,6 +15,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from warnings import warn
+from typing import List, Optional
 
 from hypnettorch.mnets.classifier_interface import Classifier
 from hypnettorch.mnets.mnet_interface import MainNetInterface
@@ -23,130 +24,60 @@ from hypnettorch.utils.torch_utils import init_params
 from utils.interval_modules import *
 
 class IntervalWRN(Classifier):
-    """Hypernet-compatible Wide Residual Network (WRN).
+    """
+    Hypernet-compatible Wide Residual Network (WRN).
 
-    In the documentation of this class, we follow the notation of the original
-    `paper  <https://arxiv.org/abs/1605.07146>`__:
+    Implements a Wide Residual Network architecture, *WRN-d-k-B(3,3)*, following
+    the original paper `Wide Residual Networks <https://arxiv.org/abs/1605.07146>`__.
 
-    - :math:`l` - deepening factor (number of convolutional layers per residual
-      block). In our case, :math:`l` is always going to be 2, as this was the
-      configuration found to work best by the authors.
-    - :math:`k` - widening factor (multiplicative factor for the number of
-      features in a convolutional layer, see argument ``k``).
-    - :math:`B(3,3)` - the block structure. The numbers denote the size of the
-      quadratic kernels used in each convolutional layer from a block. Note, the
-      authors found that :math:`B(3,3)` works best, which is why we use this
-      configuration.
-    - :math:`d` - total number of convolutional layers. Note, here we deviate
-      from the original notation (where this quantity is called :math:`n`).
-      Though, we want our notation to stay consistent with the one used in class
-      :class:`mnets.resnet.ResNet`.
-    - :math:`n` - number of residual blocks in a group. Note, a resnet consists
-      of 3 groups of residual blocks. See also argument ``n`` of class
-      :class:`mnets.resnet.ResNet`.
+    The architecture uses the following notation:
+    - $l$: Deepening factor (layers per residual block), fixed at **2**.
+    - $k$: **Widening factor** (multiplies feature map count).
+    - $B(3,3)$: Block structure using **$3 \times 3$ quadratic kernels**.
+    - $d$: Total number of convolutional layers (total depth is $6n+2$).
+    - $n$: Number of residual blocks per group (network has 3 groups).
 
-    Given this notation, the original paper denotes a WRN architecture via the
-    following notation: *WRN-d-k-B(3,3)*. Note, :math:`d` contains the total
-    number of convolutional layers (including the input layer and all residual
-    connections that are realized via 1x1 convolutions), but it does not contain
-    the final fully-connected layer. The total depth of the network (assuming
-    residual connection do not add to this depth) remains :math:`6n+2` as for
-    :class:`mnets.resnet.ResNet`.
-
-    Notable implementation differences to :class:`mnets.resnet.ResNet`
-    (some differences might vanish in the future, this list was updated on
-    05/06/2020):
-
-    - Within a block, convolutional layers are preceeded by a batchnorm layer
-      and the application of the nonlinearity. This changes the structure within
-      a block and therefore, residual connections interface with the network at
-      different locations than in class :class:`mnets.resnet.ResNet`.
-    - Dropout can be used. It will act right after the first convolutional layer
-      of each block.
-    - If the number of feature maps differs along a skip connection or a
-      downsampling has been applied, 1x1 convolutions rather than padding and
-      manual downsampling is used.
+    Notable Implementation Differences to ResNet:
+    - **Block Structure:** Convolutional layers are preceded by Batch Normalization (BN) and ReLU: $\text{BN} \rightarrow \text{ReLU} \rightarrow \text{Conv}$.
+    - **Dropout:** Applied after the first convolutional layer of each residual block.
+    - **Skip Connections:** $1 \times 1$ convolutions are used for skip connections when feature maps differ or downsampling is required.
 
     Args:
-        in_shape (tuple or list): The shape of an input sample in format
-            ``HWC``.
-
-            Note
-                We assume the Tensorflow format, where the last entry
-                denotes the number of channels. Also, see argument
-                ``chw_input_format``.
-        num_classes (int): The number of output neurons.
-
-            Note:
-                The network outputs logits.
-        n (int): The number of residual blocks per group.
-        k (int): The widening factor. Feature maps in the 3 convolutional groups
-            will be multiplied by this number. See argument
-            ``num_feature_maps``.
-        num_feature_maps (tuple): A list of 4 integers, each denoting the number
-            of feature maps of convolutional layers in a certain group of the
-            network architecture. The first entry is the number of feature
-            maps of the first convolutional layer, the remaining 3 numbers
-            determine the number of feature maps in the consecutive groups
-            comprising :math:`2n` convolutional layers each.
-
-            Note:
-                The last 3 entries of this list are multiplied by the factor
-                ``k``.
-                use_bias (bool): Whether layers may have bias terms.
-        use_bias (bool): Whether layers may have bias terms.
-
-            Note:
-                Bias terms are unnecessary in convolutional layers if batch
-                normalization is used. However, this option disables bias terms
-                altogether (including in the final fully-connected layer). See
-                option ``use_fc_bias``.
-        use_fc_bias (optional, bool): If ``None``, the value will be linked to
-            ``use_bias``. Otherwise, this option can alter the usage of bias
-            terms in the final layer compared to the remaining (convolutional)
-            layers in the network.
-        no_weights (bool): If set to ``True``, no trainable parameters will be
-            constructed, i.e., weights are assumed to be produced ad-hoc
-            by a hypernetwork and passed to the :meth:`forward` method.
-
-            Note, this also affects the affine parameters of the
-            batchnorm layer. I.e., if set to ``True``, then the argument
-            ``affine`` of :class:`utils.batchnorm_layer.BatchNormLayer`
-            will be set to ``False`` and we expect the batchnorm parameters
-            to be passed to the :meth:`forward`.
-        use_batch_norm (bool): Whether batch normalization should used.
-            There will be a batchnorm layer after each convolutional layyer
-            (excluding possible 1x1 conv layers in the skip connections).
-            However, the logical order is as follows: batchnorm layer -> ReLU ->
-            convolutional layer. Hence, a residual block (containing multiple of
-            these logical units) starts before a batchnorm layer and ends after
-            a convolutional layer.
-        bn_track_stats (bool): See argument ``bn_track_stats`` of class
-            :class:`mnets.resnet.ResNet`.
-        distill_bn_stats (bool): See argument ``bn_track_stats`` of class
-            :class:`mnets.resnet.ResNet`.
-        dropout_rate (float): If ``-1``, no dropout will be applied. Otherwise a
-            number between 0 and 1 is expected, denoting the dropout rate.
-
-            Dropout will be applied after the first convolutional layers
-            (and before the second batchnorm layer) in each residual block.
-        chw_input_format (bool): Due to legacy reasons, the network expects
-            by default flattened images as input that were encoded in the
-            ``HWC`` format. When enabling this option, the network expects
-            unflattened images in the ``CHW`` format (as typical for PyTorch).
-        verbose (bool): Allow printing of general information about the
-            generated network (such as number of weights).
-        **kwargs: Keyword arguments regarding context modulation. This class
-            can process the same context-modulation related arguments as class
-            :class:`mnets.mlp.MLP`. One may additionally specify the argument
-            ``context_mod_apply_pixel_wise`` (see class
-            :class:`mnets.resnet.ResNet`).
+        in_shape (tuple or list): The shape of an input sample in ``HWC`` format, e.g., (32, 32, 3).
+        num_classes (int): The number of output neurons (logits).
+        n (int): Number of residual blocks per group.
+        k (int): Widening factor applied to feature maps in the 3 main convolutional groups.
+        num_feature_maps (tuple): List of 4 integers defining initial and group feature map counts. The last 3 entries are multiplied by $k$.
+        use_bias (bool): Whether layers may have bias terms. Bias is redundant in conv layers with BN.
+        use_fc_bias (optional, bool): Controls bias in the final fully-connected layer. If ``None``, it links to ``use_bias``.
+        no_weights (bool): If ``True``, assumes weights are supplied ad-hoc by a hypernetwork (no trainable parameters are constructed, and BN affine is disabled).
+        use_batch_norm (bool): Whether batch normalization should be used.
+        bn_track_stats (bool): Whether to track running statistics for BN layers.
+        distill_bn_stats (bool): Allows distillation of BN statistics.
+        dropout_rate (float): The dropout rate (0 to 1). If $-1$, no dropout is applied.
+        chw_input_format (bool): If ``True``, expects unflattened images in the ``CHW`` (PyTorch) format. Default assumes ``HWC``.
+        verbose (bool): Allow printing of general information about the network (e.g., number of weights).
+        **kwargs: Keyword arguments for context modulation.
     """
-    def __init__(self, in_shape=(32, 32, 3), num_classes=10, n=4, k=10,
-                 num_feature_maps=(16, 16, 32, 64), use_bias=True,
-                 use_fc_bias=None, no_weights=False, use_batch_norm=True,
-                 bn_track_stats=True, distill_bn_stats=False, dropout_rate=-1,
-                 chw_input_format=False, verbose=True, **kwargs):
+    def __init__(
+        self,
+        in_shape: tuple = (32, 32, 3),
+        num_classes: int = 10,
+        n: int = 4,
+        k: int = 10,
+        num_feature_maps: tuple = (16, 16, 32, 64),
+        use_bias: bool = True,
+        use_fc_bias: bool = None,
+        no_weights: bool = False,
+        use_batch_norm: bool = True,
+        bn_track_stats: bool = True,
+        distill_bn_stats: bool = False,
+        dropout_rate: float = -1,
+        chw_input_format: bool = False,
+        verbose: bool = True,
+        **kwargs
+    ) -> None:
+        
         super(IntervalWRN, self).__init__(num_classes, verbose)
 
         assert no_weights, "Learnable parameters are only generated by a hypernetwork"
@@ -414,21 +345,28 @@ class IntervalWRN(Classifier):
                  'this attribute for this reason.')
         return self._has_bias
 
-    def forward(self, x, epsilon: float, weights=None, distilled_params=None, condition=None):
+    def forward(self, x: torch.Tensor, epsilon: float, weights: List[torch.Tensor]=None, 
+                distilled_params: List=None, condition: int=None) -> Tuple[torch.Tensor, torch.Tensor]:
         """Compute the output :math:`y` of this network given the input
         :math:`x`.
 
+        This method computes the forward pass, potentially using hypernetwork-generated
+        weights and accounting for interval/uncertainty bounds via :math:`\\epsilon`.
+
         Args:
-            (....): See docstring of method
-                :meth:`mnets.resnet.ResNet.forward`. We provide some more
-                specific information below.
-            x (torch.Tensor): Based on the constructor argument
-                ``chw_input_format``, either a flattened image batch with
-                encoding ``HWC`` or an unflattened image batch with encoding
-                ``CHW`` is expected.
+            x (torch.Tensor): The input image batch. Expected format is either 
+                flattened ``HWC`` or unflattened ``CHW``, depending on the 
+                ``chw_input_format`` constructor argument.
+            epsilon (float): The uncertainty radius or perturbation bound for interval propagation.
+            weights (optional, list or dict): Weights generated by a hypernetwork. These are only 
+                used if the network was initialized with ``no_weights=True``.
+            distilled_params (optional, list or dict): Parameters (e.g., Batch Norm statistics)
+                used for distillation purposes.
+            condition (optional, torch.Tensor): A conditioning vector used for context modulation
+                if the network was configured for it.
 
         Returns:
-            (torch.Tensor): The output of the network.
+            (torch.Tensor): The output of the network (logits).
         """
         if ((not self._use_context_mod and self._no_weights) or \
                 (self._no_weights or self._context_mod_no_weights)) and \
@@ -617,28 +555,30 @@ class IntervalWRN(Classifier):
         layer_ind = 0
 
         ### Helper function to process convolutional layers.
-        def conv_layer(mu, eps: torch.Tensor, stride, shortcut_mu=None, 
-                       shortcut_eps=None, no_conv=False):
-            """Compute the output of a full conv layer within a residual block
-            including batchnorm, context-mod, non-linearity and shortcut.
+        def conv_layer(self, mu: torch.Tensor, eps: torch.Tensor, stride: int, shortcut_mu: torch.Tensor = None, 
+                   shortcut_eps: torch.Tensor = None, no_conv: bool = False) -> Tuple[torch.Tensor, torch.Tensor]:
+            """Compute the output of a full convolutional layer within a residual block.
 
-            The order if the following:
+            This function includes batch normalization, context modulation, non-linearity, 
+            and the final addition of a shortcut connection. It handles both the mean ($\mu$) 
+            and the interval uncertainty ($\epsilon$) tensors.
 
-            context-mod (if pre-activation) -> batch-norm -> non-linearity ->
-            context-mod (if post-activation) -> conv-layer -> shortcut
+            The order of operations is:
+            $\text{Context-Mod (pre)} \rightarrow \text{Batch-Norm} \rightarrow \text{Non-Linearity} \rightarrow$
+            $\text{Context-Mod (post)} \rightarrow \text{Conv-Layer} \rightarrow \text{Shortcut}$
 
-            This method increments the indices ``layer_ind``, ``cm_ind`` and
-            ``bn_ind``.
+            This method internally increments the indices ``layer_ind``, ``cm_ind``, and ``bn_ind``.
 
             Args:
-                mu: Input activity.
-                stride: Stride of conv. layer (padding is set to 1).
-                shortcut_mu: If set, this tensor will be added to the activation
-                    before the non-linearity is applied.
-                no_conv: If True, no convolutional layer is applied.
+                mu (torch.Tensor): The mean ($\mu$) component of the input activity interval.
+                eps (torch.Tensor): The epsilon ($\epsilon$) component of the input activity interval (uncertainty radius).
+                stride (int): The stride used for the convolutional layer (padding is automatically set to 1).
+                shortcut_mu (optional, torch.Tensor): The mean ($\mu$) component of the skip connection tensor to be added *before* the non-linearity.
+                shortcut_eps (optional, torch.Tensor): The epsilon ($\epsilon$) component of the skip connection tensor to be added *before* the non-linearity.
+                no_conv (bool): If True, skips the application of the convolutional layer.
 
             Returns:
-                Output of layer.
+                Tuple[torch.Tensor, torch.Tensor]: A tuple containing the output mean ($\mu$) and epsilon ($\epsilon$) tensors of the layer.
             """
             nonlocal layer_ind, cm_ind, bn_ind
 
@@ -797,19 +737,20 @@ class IntervalWRN(Classifier):
         return mu, eps
 
 
-    def distillation_targets(self):
+    def distillation_targets(self) -> Optional[List[torch.Tensor]]:
         """Targets to be distilled after training.
 
-        See docstring of abstract super method
-        :meth:`mnets.mnet_interface.MainNetInterface.distillation_targets`.
+        Retrieves tensors intended for knowledge distillation, primarily the current
+        batch statistics from Batch Normalization (BN) layers.
 
-        This method will return the current batch statistics of all batch
-        normalization layers if ``distill_bn_stats`` and ``use_batch_norm``
-        were set to ``True`` in the constructor.
+        This method returns the current BN batch statistics if both 
+        ``distill_bn_stats`` and ``use_batch_norm`` were set to ``True`` in the constructor. 
+        It returns ``None`` if there are no targets to distill.
 
         Returns:
-            The target tensors corresponding to the shapes specified in
-            attribute :attr:`hyper_shapes_distilled`.
+            Optional[List[torch.Tensor]]: A list of target tensors corresponding to the 
+            shapes specified in the attribute ``hyper_shapes_distilled``, or ``None`` if 
+            distillation is disabled.
         """
         if self.hyper_shapes_distilled is None:
             return None
@@ -821,23 +762,21 @@ class IntervalWRN(Classifier):
         return ret
 
 
-    def _compute_layer_out_sizes(self):
-        """Compute the output shapes of all layers in this network excluding
-        skip connection layers.
+    def _compute_layer_out_sizes(self) -> List[List[int]]:
+        """Compute the output shapes of all main layers in this network.
 
-        This method will compute the output shape of each layer in this network,
-        including the output layer, which just corresponds to the number of
-        classes.
+        This method calculates the output shape for every main layer, including the 
+        final classification layer (which corresponds to the number of classes). It
+        excludes any shapes related to skip connection layers.
 
         Returns:
-            (list): A list of shapes (lists of integers). The first entry will
-            correspond to the shape of the output of the first convolutional
-            layer. The last entry will correspond to the output shape.
+            List[List[int]]: A list of shapes (lists of integers). The first entry 
+            is the output shape of the first convolutional layer. The last entry 
+            is the shape of the final output (logits).
 
-            .. note:
-                Output shapes of convolutional layers will adhere PyTorch
-                convention, i.e., ``[C, H, W]``, where ``C`` denotes the channel
-                dimension.
+        Note:
+            Output shapes for convolutional layers adhere to PyTorch convention: 
+            ``[C, H, W]``, where ``C`` is the channel dimension.
         """
         # FIXME Method has been copied and only slightly modified from class
         # `ResNet`.
@@ -892,17 +831,39 @@ class IntervalWRN(Classifier):
 
         return ret
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Returns the canonical string representation of the WRN architecture.
+
+        The string follows the notation: **WRN-d-k-B(3,3)**, where:
+        - ``d`` is the total number of convolutional layers.
+        - ``k`` is the widening factor.
+        - ``B(3,3)`` indicates $3 \times 3$ kernel sizes.
+
+        The total number of convolutional layers is calculated as $1 + 6n + \sum(\text{group\_has\_1x1})$.
+
+        Returns:
+            str: The WRN architecture string, e.g., 'WRN-28-10-B(3,3)'.
+        """
         n_conv_layers = 1 +  6 * self._n + np.sum(self._group_has_1x1)
         # WRN-d-k-B(3,3)
         return 'WRN-%d-%d-B(3,3)' % (n_conv_layers, self._k)
 
-    def get_output_weight_mask(self, out_inds=None, device=None):
-        """Create a mask for selecting weights connected solely to certain
-        output units.
+    def get_output_weight_mask(self, out_inds: Optional[Union[List[int], torch.Tensor]] = None, 
+                               device: Optional[Union[str, torch.device]] = None) -> List[torch.Tensor]:
+        """Create a mask for selecting weights connected solely to certain output units.
 
-        See docstring of overwritten super method
-        :meth:`mnets.mnet_interface.MainNetInterface.get_output_weight_mask`.
+        This method generates masks for the weight tensors of the network. The masks are 
+        used to identify and isolate parameters that exclusively contribute to the specified 
+        output units (e.g., for task-specific distillation or regularization).
+
+        Args:
+            out_inds (optional, list of int or torch.Tensor): The indices of the output units 
+                for which the weight masks should be created. If ``None``, a full mask is often implied.
+            device (optional, str or torch.device): The device on which the resulting mask tensors should be allocated.
+
+        Returns:
+            List[torch.Tensor]: A list of masks (binary tensors) corresponding to the network's 
+            weight tensors, where `True` indicates a connection to the specified output units.
         """
         # Note: Super method `get_output_weight_mask` fails if `has_bias` fails.
         # Therefore, we simply replace `has_bias` with `_use_fc_bias`.

@@ -180,7 +180,7 @@ class IntervalMLP(nn.Module, MainNetInterface):
                 eps = eps.T
         return hidden, eps.T
 
-    def distillation_targets(self):
+    def distillation_targets(self) -> None:
         return None
 
     @staticmethod
