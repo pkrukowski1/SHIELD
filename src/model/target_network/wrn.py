@@ -555,7 +555,7 @@ class IntervalWRN(Classifier):
         layer_ind = 0
 
         ### Helper function to process convolutional layers.
-        def conv_layer(self, mu: torch.Tensor, eps: torch.Tensor, stride: int, shortcut_mu: torch.Tensor = None, 
+        def conv_layer(mu: torch.Tensor, eps: torch.Tensor, stride: int, shortcut_mu: torch.Tensor = None, 
                    shortcut_eps: torch.Tensor = None, no_conv: bool = False) -> Tuple[torch.Tensor, torch.Tensor]:
             """Compute the output of a full convolutional layer within a residual block.
 

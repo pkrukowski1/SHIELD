@@ -1,0 +1,91 @@
+method: grid
+metric:
+  name: avg_acc
+  goal: maximize
+
+parameters:
+
+  dataset:
+    value: split_cifar_100
+  method:
+    value: shield
+  model:
+    value: wrn
+  exp:
+    value: interval_training
+
+  # Dataset (fixed)
+  dataset._target_:
+    value: continual_dataset.SplitCIFAR100
+  dataset.number_of_tasks:
+    value: 1
+  dataset.validation_size:
+    value: 5000
+  dataset.use_augmentation: 
+    value: False
+  dataset.use_cutout: 
+    value: False
+
+  # Experiment setup
+  exp.seed:
+    value: 42
+  exp.batch_size:
+    value: 32
+  exp.no_epochs:
+    value: 200
+  exp.no_iterations:
+    value: null
+
+  # Fabric setup
+  fabric.accelerator:
+    value: gpu
+
+  # Method (sweep these)
+  method.lr:
+    value: 0.001
+  method.beta:
+    values: [0.0] # It's just a single task, so there is no need to use hypernetwork regularization
+  method.mixup_alpha:
+    values: [0.01, 0.1, 0.2, 0.3]
+  method.epsilon:
+    values: [0.03137254901, 0.01, 0.001]
+  method.use_lr_scheduler:
+    value: True
+  method.mixup_epsilon_decay:
+    value: linear
+  method._target_:
+    value: method.SHIELD
+
+  # Model
+  model._target_:
+    value: model.HyperNetWithWRN
+  model.in_shape:
+    value: [32,32,3]
+  model.no_classes_per_task:
+    value: 100
+  model.n:
+    value: 5
+  model.k:
+    value: 20
+  model.num_feature_maps:
+    value: [16, 16, 32, 64]
+  model.activation_function._target_:
+    value: torch.nn.ReLU
+  model.hnet_hidden_layers:
+    values: [[100, 50], [200, 50]]
+  model.hnet_embedding_size:
+    values: [128, 256, 512]
+
+  # W&B logging
+  wandb.entity:
+    value: ${oc.env:WANDB_ENTITY}
+  wandb.project:
+    value: ${oc.env:WANDB_PROJECT}
+
+command:
+  - ${env}
+  - python
+  - src/main.py
+  - --config-name
+  - shield.yaml
+  - ${args_no_hyphens}

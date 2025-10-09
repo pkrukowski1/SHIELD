@@ -171,7 +171,7 @@ class SHIELD(MethodABC):
         loss_spec = self.mixup_criterion(self.criterion, z, y_a, y_b, lam)
         loss_fit  = self.mixup_criterion(self.criterion, prediction, y_a, y_b, lam)
 
-        loss_current_task = self.current_kappa * loss_fit + (1 -self.current_kappa) * loss_spec
+        loss_current_task = self.current_kappa * loss_fit + (1 - self.current_kappa) * loss_spec
 
         loss_regularization = 0.0
         if task_id > 0:
