@@ -11,6 +11,7 @@ import wandb
 import logging
 
 import torch
+from torch.utils.data import TensorDataset, DataLoader
 
 from utils.fabric import setup_fabric
 from utils.handy_functions import write_pickle_file, plot_heatmap, safe_none, make_deepcopy
@@ -98,10 +99,11 @@ def experiment(config: DictConfig) -> None:
 
     plot_heatmap(f'{config.exp.log_dir}/results.csv')
 
-    bwt = calculate_backward_transfer(dataframe)
-    log.info(f"Backward transfer: {bwt:.5f}")
-    if wandb.run:
-        wandb.log({"backward_transfer": bwt})
+    if task_id > 0:
+        bwt = calculate_backward_transfer(dataframe)
+        log.info(f"Backward transfer: {bwt:.5f}")
+        if wandb.run:
+            wandb.log({"backward_transfer": bwt})
 
     plot_accuracy_progression(all_accuracies, f"{config.exp.log_dir}/accuracy_progression.png")
 
@@ -242,29 +244,51 @@ def calculate_number_of_iterations(number_of_samples: int, batch_size: int, numb
     total_no_of_iterations: int = no_of_iterations_per_epoch * number_of_epochs
     return no_of_iterations_per_epoch, total_no_of_iterations
 
-def calculate_accuracy(data, module: CLModuleABC, evaluation_dataset: str,
-                        epsilon: float, number_of_task: int, device: torch.device) -> float:
+@torch.no_grad()
+def calculate_accuracy(
+    data, module: CLModuleABC, evaluation_dataset: str,
+    epsilon: float, number_of_task: int,
+    device: torch.device, batch_size: int = 128
+) -> float:
     """
-    Calculates the classification accuracy of a neural network model on a specified evaluation dataset.
+    Calculates classification accuracy in a memory-efficient way using batches.
     """
     module.hnet.eval()
 
+    # Select evaluation split
     if evaluation_dataset == "validation":
         input_data = data.get_val_inputs()
         output_data = data.get_val_outputs()
     elif evaluation_dataset == "test":
         input_data = data.get_test_inputs()
         output_data = data.get_test_outputs()
+    else:
+        raise ValueError("evaluation_dataset must be 'validation' or 'test'.")
 
-    test_input = data.input_to_torch_tensor(input_data, device, mode="inference")
-    test_output = data.output_to_torch_tensor(output_data, device, mode="inference")
-    gt_classes = test_output.max(dim=1)[1]
+    # Convert to tensors (on CPU)
+    inputs = data.input_to_torch_tensor(input_data, device="cpu", mode="inference")
+    outputs = data.output_to_torch_tensor(output_data, device="cpu", mode="inference")
+    gt_classes = outputs.max(dim=1)[1]
 
-    logits, _ =  module.forward(x=test_input, epsilon=epsilon, task_id=number_of_task)
-    predictions = logits.max(dim=1)[1]
-    accuracy = torch.sum(gt_classes == predictions).float() / gt_classes.numel() * 100.0
+    # Create DataLoader for batching
+    dataset = TensorDataset(inputs, gt_classes)
+    loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
-    return accuracy.item()
+    correct = 0
+    total = 0
+
+    for batch_x, batch_y in loader:
+        batch_x = batch_x.to(device, non_blocking=True)
+        batch_y = batch_y.to(device, non_blocking=True)
+
+        logits, _ = module.forward(x=batch_x, epsilon=epsilon, task_id=number_of_task)
+        preds = logits.argmax(dim=1)
+        correct += (preds == batch_y).sum().item()
+        total += batch_y.size(0)
+
+    accuracy = 100.0 * correct / total
+    return accuracy
+
 
 def evaluate_previous_tasks(module: CLModuleABC, dataframe: pd.DataFrame, task_id: int, task_datasets: Iterable, epsilon: float,
                              device: torch.device) -> pd.DataFrame:

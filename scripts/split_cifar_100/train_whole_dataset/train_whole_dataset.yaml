@@ -22,7 +22,7 @@ parameters:
   dataset.validation_size:
     value: 5000
   dataset.use_augmentation: 
-    value: False
+    value: True
   dataset.use_cutout: 
     value: False
 
