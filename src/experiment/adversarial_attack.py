@@ -50,17 +50,50 @@ def experiment(config: DictConfig) -> None:
             test_target = dataset.output_to_torch_tensor(targets, fabric.device, mode="inference")
             test_target = test_target.max(dim=1)[1]
 
+            assert test_input.ndim == 2, f"Expected flattened input [N, F], got shape {test_input.shape}"
+            N, F = test_input.shape
+
+            num_channels = len(config.exp.standarization.mean)
+            assert F % num_channels == 0, (
+                f"Input feature size {F} not divisible by channel count {num_channels}"
+            )
+
+            pixels_per_channel = F // num_channels
+
+            mean_vals = torch.tensor(config.exp.standarization.mean, device=fabric.device, dtype=test_input.dtype)
+            std_vals = torch.tensor(config.exp.standarization.std, device=fabric.device, dtype=test_input.dtype)
+
+            mean_flat = mean_vals.repeat_interleave(pixels_per_channel)  # shape [F]
+            std_flat = std_vals.repeat_interleave(pixels_per_channel)    # shape [F]
+
+            mean = mean_flat.unsqueeze(0).expand_as(test_input)  # [N, F]
+            std = std_flat.unsqueeze(0).expand_as(test_input)    # [N, F]
+
+            test_input = (test_input - mean) / std
+            min_val, max_val = test_input.min().float(), test_input.max().float()
+
             # Instantiate the attack
             attack = instantiate(attack_cfg, model=model, task_id=task_id, device=fabric.device)
 
-            # Generate adversarial examples
-            adv_input = attack.forward(test_input, test_target)
+            correct = 0
+            total = 0
+            batch_size = 1000
 
-            # Compute classical accuracy on adversarial inputs
-            with torch.no_grad():
-                logits, _ = model(x=adv_input, task_id=task_id, epsilon=config.exp.epsilon)
-                preds = logits.max(dim=1)[1]
-                acc = 100.0 * (preds == test_target).float().mean().item()
+            for start in range(0, N, batch_size):
+                end = min(start + batch_size, N)
+                batch_input = test_input[start:end]
+                batch_target = test_target[start:end]
+
+                adv_input = attack.forward(batch_input, batch_target, min_val=min_val, max_val=max_val)
+
+                # Compute classical accuracy on adversarial inputs
+                with torch.no_grad():
+                    logits, _ = model(x=adv_input, task_id=task_id, epsilon=config.exp.epsilon)
+                    preds = logits.max(dim=1)[1]
+                    correct += (preds == batch_target).sum().item()
+                    total += batch_target.size(0)
+
+            acc = 100.0 * (correct / total) if total > 0 else 0.0
 
             log.info(f"[{attack_name}] Task {task_id} | Adversarial Accuracy: {acc:.4f}%")
             results.append({"task_id": task_id, "adversarial_accuracy": acc})

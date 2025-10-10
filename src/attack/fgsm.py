@@ -35,7 +35,7 @@ class FGSM:
         self.eps = eps
         self.device = device
 
-    def forward(self, images: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+    def forward(self, images: torch.Tensor, labels: torch.Tensor, min_val: float, max_val: float) -> torch.Tensor:
         """
         Generates adversarial examples using the Fast Gradient Sign Method (FGSM).
         Args:
@@ -43,6 +43,8 @@ class FGSM:
                 where N is the batch size, C is the number of channels, H is the height,
                 and W is the width.
             labels (torch.Tensor): The ground truth labels corresponding to the input images.
+            min_val (torch.Tensor): Minimal value of the input data.
+            max_val (torch.Tensor): Maximal value of the input data.
         Returns:
             torch.Tensor: The adversarially perturbed images, of the same shape as the input images.
         """
@@ -63,7 +65,7 @@ class FGSM:
             cost, images, retain_graph=False, create_graph=False
         )[0]
         adv_images = images + self.eps * grad.sign()
-        adv_images = torch.clamp(adv_images, min=0, max=1).detach()
+        adv_images = torch.clamp(adv_images, min=min_val, max=max_val).detach()
 
         return adv_images
 

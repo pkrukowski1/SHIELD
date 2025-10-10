@@ -1,5 +1,5 @@
 _target_: continual_dataset.SplitCIFAR100
-number_of_tasks: 10
+number_of_tasks: 1
 use_augmentation: False
 validation_size: 500
 use_cutout: False

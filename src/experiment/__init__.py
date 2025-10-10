@@ -5,4 +5,3 @@ from .inc_pert_size_fgsm import experiment as inc_pert_size_fgsm
 from .inc_no_iterations_pgd import experiment as inc_no_iterations_pgd
 from .plot_interval_mixup_samples import experiment as plot_interval_mixup_samples
 from .cil_adversarial_attack import experiment as cil_adversarial_attack
-from .incremental_defense import experiment as incremental_defense

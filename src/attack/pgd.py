@@ -36,12 +36,14 @@ class PGD:
         self.random_start = random_start
         self.device = device
 
-    def forward(self, images: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+    def forward(self, images: torch.Tensor, labels: torch.Tensor, min_val: float, max_val: float) -> torch.Tensor:
         """
         Performs the forward pass of the PGD (Projected Gradient Descent) attack to generate adversarial examples.
         Args:
             images (torch.Tensor): The input images to be perturbed. Shape: (batch_size, channels, height, width).
             labels (torch.Tensor): The true labels corresponding to the input images. Shape: (batch_size,).
+            min_val (torch.Tensor): Minimal value of the input data.
+            max_val (torch.Tensor): Maximal value of the input data.
         Returns:
             torch.Tensor: The adversarially perturbed images. Shape: (batch_size, channels, height, width).
         Notes:
@@ -63,7 +65,7 @@ class PGD:
             adv_images = adv_images + torch.empty_like(adv_images).uniform_(
                 -self.eps, self.eps
             )
-            adv_images = torch.clamp(adv_images, min=0, max=1).detach()
+            adv_images = torch.clamp(adv_images, min=min_val, max=max_val).detach()
 
         for _ in range(self.steps):
             adv_images.requires_grad = True
@@ -79,7 +81,7 @@ class PGD:
 
             adv_images = adv_images.detach() + self.alpha * grad.sign()
             delta = torch.clamp(adv_images - images, min=-self.eps, max=self.eps)
-            adv_images = torch.clamp(images + delta, min=0, max=1).detach()
+            adv_images = torch.clamp(images + delta, min=min_val, max=max_val).detach()
 
         return adv_images
 

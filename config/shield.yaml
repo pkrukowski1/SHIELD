@@ -3,7 +3,7 @@ defaults:
   - dataset: split_cifar_100
   - model: wrn
   - method: shield
-  - exp: interval_training
+  - exp: adversarial_attack
 
 fabric:
   _target_: lightning.Fabric

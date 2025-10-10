@@ -2,21 +2,24 @@ run_func:
     _target_: experiment.adversarial_attack
 seed: 42
 log_dir: # set during runtime to automatically created dir
-epsilon: 0.00784313725
+epsilon: 0.005
+standarization: 
+    mean: [0.485, 0.456, 0.406]
+    std: [0.229, 0.224, 0.225]
 attack:
     fgsm:
         _target_: attack.FGSM
-        eps: 0.00784313725
+        eps: 0.03137254901
     pgd:
         _target_: attack.PGD
-        eps: 0.00392156862 
-        alpha: 0.0156862745 
-        steps: 100
+        eps: 0.03137254901
+        alpha: 0.00784313725  
+        steps: 10
         random_start: True
-    auto_attack:
-        _target_: attack.AutoAttack
-        eps: 0.07843137254 
-        total_no_classes: 100
-        input_shape: [3, 64, 64]
+    # auto_attack:
+    #     _target_: attack.AutoAttack
+    #     eps: 0.07843137254 
+    #     total_no_classes: 100
+    #     input_shape: [3, 64, 64]
     
-path_to_weights: saved_models/split_mini_imagenet/full_architecture_with_mixup/42/
+path_to_weights: saved_models/split_cifar_100/wrn/42/

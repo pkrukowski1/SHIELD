@@ -1,12 +1,12 @@
 _target_: model.HyperNetWithWRN
 in_shape: [32,32,3] # Tensorflow format
-no_classes_per_task: 10
+no_classes_per_task: 100
 # n: 5  # WRN-d-k, but here d=6n+2, so if d=34, then n=5 (approximately)
 # k: 20
 n: 1  # To test locally
-k: 1
+k: 10
 num_feature_maps: [16, 16, 32, 64]
 activation_function:
   _target_: torch.nn.ReLU
 hnet_hidden_layers: [100,50]
-hnet_embedding_size: 128
+hnet_embedding_size: 512
