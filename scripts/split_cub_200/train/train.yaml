@@ -51,6 +51,8 @@ parameters:
     value: linear
   method._target_:
     value: method.SHIELD
+  method.final_kappa:
+    value: 0.5
 
   # Model
   model._target_: 

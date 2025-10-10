@@ -5,3 +5,4 @@ beta: 0.01
 mixup_alpha: 0.1
 epsilon: 0.01
 mixup_epsilon_decay: linear # linear, quadratic, log, cos
+final_kappa: 0.5

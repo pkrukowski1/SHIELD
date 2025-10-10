@@ -27,6 +27,7 @@ class SHIELD(MethodABC):
         mixup_alpha (float): Alpha parameter for the mixup data augmentation.
         no_iterations (int): Total number of training iterations per task.
         mixup_epsilon_decay (str): Decaying rate of an epsilon in Interval MixUp.
+        final_kappa (float): Final value of weight for worst-case vs standard loss.
     Attributes:
         beta (float): Regularization strength for previous tasks.
         mixup_alpha (float): Alpha parameter for the mixup data augmentation.
@@ -58,7 +59,8 @@ class SHIELD(MethodABC):
                  use_lr_scheduler: bool,
                  beta: float,
                  mixup_alpha: float,
-                 mixup_epsilon_decay: str = "linear"
+                 mixup_epsilon_decay: str = "linear",
+                 final_kappa: float = 0.5
                  ):
         super().__init__(module=module, lr=lr, use_lr_scheduler=use_lr_scheduler)
 
@@ -75,6 +77,7 @@ class SHIELD(MethodABC):
         self.current_iteration = 0
 
         self.mixup_epsilon_decay_fnc = MixupEpsilonDecayRate(mixup_epsilon_decay)
+        self.final_kappa = final_kappa
 
     def set_no_iterations(self, value: int) -> None:
         self.no_iterations = value
@@ -92,12 +95,12 @@ class SHIELD(MethodABC):
     def schedule_kappa(self, iteration: int) -> float:
         """
         Schedules the kappa value based on the current iteration.
-        The kappa decreases linearly until it reaches 0.5.
+        The kappa decreases linearly until it reaches `final_kappa`.
         """
         if iteration <= self.no_iterations // 2:
             self.current_kappa = 1 - (iteration / self.no_iterations)
         else:
-            self.current_kappa = 0.5
+            self.current_kappa = self.final_kappa
 
     def setup_task(self, task_id: int) -> None:
         """
