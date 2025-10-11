@@ -92,12 +92,16 @@ class AutoAttackWrapper(AutoAttack):
         self.input_shape = input_shape
         
 
-    def forward(self, images: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+    def forward(self, images: torch.Tensor, labels: torch.Tensor, min_val: float, max_val: float) -> torch.Tensor:
         """
         Runs the standard AutoAttack evaluation on the provided images and labels.
+        Arguments `min_val` and `max_val` are here just to make the `forward` function
+        compatible with the rest of adversarial attacks.
         Args:
             images (torch.Tensor): Input images to attack, expected shape (N, C, H, W).
             labels (torch.Tensor): True labels for the images, expected shape (N,).
+            min_val (torch.Tensor): Minimal value of the input data.
+            max_val (torch.Tensor): Maximal value of the input data.
         Returns:
             torch.Tensor: Results of the adversarial evaluation.
         """
