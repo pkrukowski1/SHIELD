@@ -84,7 +84,7 @@ class AutoAttackWrapper(AutoAttack):
             norm=norm,
             eps=eps,
             version=version,
-            verbose=True,
+            verbose=False,
             device=device,
             attacks_to_run=["apgd-ce", "apgd-t", "fab", "square"]
         )
