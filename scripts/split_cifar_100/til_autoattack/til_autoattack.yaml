@@ -12,7 +12,7 @@ parameters:
   model:
     value: alexnet
   exp:
-    value: cil_adversarial_attack
+    value: adversarial_attack
 
   # Dataset (fixed)
   dataset._target_:
