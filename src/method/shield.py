@@ -97,10 +97,7 @@ class SHIELD(MethodABC):
         Schedules the kappa value based on the current iteration.
         The kappa decreases linearly until it reaches `final_kappa`.
         """
-        if iteration <= self.no_iterations // 2:
-            self.current_kappa = 1 - (iteration / self.no_iterations)
-        else:
-            self.current_kappa = self.final_kappa
+        self.current_kappa = max(self.final_kappa, 1 - iteration / self.no_iterations)
 
     def setup_task(self, task_id: int) -> None:
         """
