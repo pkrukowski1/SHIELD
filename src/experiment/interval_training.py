@@ -91,11 +91,14 @@ def experiment(config: DictConfig) -> None:
             log.info(f"Average accuracy after task {task_id}: {avg_acc:.2f}%")
             if wandb.run:
                 wandb.log({f"avg_accuracy_up_to_task_{task_id}": avg_acc})
+
+            if config.exp.save_model_per_task:
+                write_pickle_file(f'{config.exp.log_dir}/hnet_after_{task_id+1}_task', best_module.hnet.weights)
     except IndexError:
         pass
 
-
-    write_pickle_file(f'{config.exp.log_dir}/hnet', best_module.hnet.weights)
+    if not config.exp.save_model_per_task:
+        write_pickle_file(f'{config.exp.log_dir}/hnet', best_module.hnet.weights)
 
     plot_heatmap(f'{config.exp.log_dir}/results.csv')
 
