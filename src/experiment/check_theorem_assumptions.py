@@ -7,6 +7,7 @@ from hydra.utils import instantiate
 from tqdm import tqdm
 import torch.nn.utils as nn_utils
 from typing import Tuple
+import numpy as np
 
 from utils.fabric import setup_fabric
 from utils.handy_functions import prepare_weights
@@ -118,9 +119,8 @@ def experiment(config: DictConfig) -> None:
     """
     Load all datasets and weights. Check theorem assumptions ONCE at the end.
     
-    1. Checks the relaxed (mean) theorem condition.
-    2. Calculates the percentage of samples that are *guaranteed* to
-       maintain robustness based on the theorem's per-sample proof.
+    This version filters the analysis to only include samples
+    that were certifiably robust immediately after task s (i.e., M_initial > 0).
     """
     number_of_tasks = config.dataset.number_of_tasks
     epsilon = config.exp.epsilon
@@ -138,6 +138,7 @@ def experiment(config: DictConfig) -> None:
     
     log.info("Loading all hypernetwork weights")
     all_hnet_weights = []
+    # ... (loading weights remains the same) ...
     for i in range(number_of_tasks):
         try:
             weights_path = f"{path_to_weights}/hnet_after_{i+1}_task.pt"
@@ -161,64 +162,69 @@ def experiment(config: DictConfig) -> None:
     log.info(f"--- Checking Theorem Against Final Task t={t_final} ---")
 
     for s in range(t_final):
-        log.info(f"Checking condition for previous task s={s}...")
+        log.info(f"Checking condition for previous task s={s}. Filtering out initially non-robust samples...")
         
         weights_initial = all_hnet_weights[s]
         
         # --- 1. Compute all necessary per-sample vectors ---
-        
-        # Get mean margin AND per-sample margins at time t_final
-        M_mean_final, margins_final = compute_margins(
+        # NOTE: M_mean_final is still calculated on the full dataset, 
+        # but is less relevant once we filter.
+        _, margins_final = compute_margins(
             model, task_datasets[s], s, weights_final, epsilon, fabric
         )
         
         # Get mean margin AND per-sample margins at time s (initial)
-        M_mean_initial, margins_initial = compute_margins(
+        _, margins_initial = compute_margins(
             model, task_datasets[s], s, weights_initial, epsilon, fabric
         )
         
         # Get max delta AND per-sample deltas
-        Delta_max, deltas_per_sample = compute_deltas(
+        _, deltas_per_sample = compute_deltas(
             model, task_datasets[s], s, weights_initial, weights_final, fabric, config
         )
+
+        # --- 2. Filter for Initially Robust Samples ---
         
-        # --- 2. Perform the "Relaxed Theorem" (mean/max) check ---
-        condition_met_relaxed = Delta_max <= (0.5 * M_mean_final)
+        # Create a boolean mask: True for samples where margin_initial > 0
+        is_initially_robust = margins_initial > 0.0
         
-        # --- 3. Perform the "Guaranteed Percentage" (per-sample) check ---
-        # This is the core logic from the theorem's proof:
-        # M_new >= M_old - 2*Delta
-        guaranteed_new_margins = margins_initial - (2.0 * deltas_per_sample)
+        # Get the size of the filtered subset
+        N_robust = is_initially_robust.sum().item()
+        N_full = margins_initial.shape[0]
+
+        if N_robust == 0:
+            log.warning(f"Task s={s} has no initially robust samples (N={N_full}). Skipping detailed analysis.")
+            continue
+            
+        # Apply the mask to all relevant vectors
+        margins_final_filtered = margins_final[is_initially_robust]
+        deltas_per_sample_filtered = deltas_per_sample[is_initially_robust]
+
+        # --- 3. Recalculate Metrics using the filtered subset ---
         
-        num_guaranteed_robust = (guaranteed_new_margins > 0).sum().item()
-        N = margins_initial.shape[0]
-        percent_guaranteed_robust = 100.0 * num_guaranteed_robust / N
+        # The core logic: M_new >= M_old - 2*Delta, applied only to robust subset
+        guaranteed_new_margins_filtered = margins_final_filtered - (2.0 * deltas_per_sample_filtered)
         
-        # (Optional but useful) Compute the ACTUAL final robustness percentage
-        num_actually_robust = (margins_final > 0).sum().item()
-        percent_actually_robust = 100.0 * num_actually_robust / N
+        num_guaranteed_robust_filtered = (guaranteed_new_margins_filtered > 0).sum().item()
+        percent_guaranteed_robust_filtered = 100.0 * num_guaranteed_robust_filtered / N_robust
+        
         
         # --- 4. Log results ---
-        log.info(f"--- Results for s={s} (comparing s -> t_final={t_final}) ---")
-        log.info(f"[Relaxed Theorem] Delta_max: {Delta_max:.4e} | "
-                 f"Budget (0.5*M_mean_final): {(0.5 * M_mean_final):.4e} | "
-                 f"Met: {condition_met_relaxed}")
+        log.info(f"--- Results for s={s} (Filtered N={N_robust} / {N_full}) ---")
+        log.info(f"[Initial State] Robustness: {100.0 * N_robust / N_full:.2f}%")
         
-        log.info(f"[Per-Sample Check] Guaranteed Robust (by Thm): {percent_guaranteed_robust:.2f}% | "
-                 f"Actual Final Robust: {percent_actually_robust:.2f}%")
+        log.info(f"[Preservation Check] Guaranteed Robust %: {percent_guaranteed_robust_filtered:.2f}%")
 
         results.append({
             "s_previous_task": s,
             "t_final_task": t_final,
-            "M_mean_s_t_final": M_mean_final,
-            "Delta_max_s_t_final": Delta_max,
-            "Relaxed_Condition_Met": condition_met_relaxed,
-            "Percent_Guaranteed_Robust_by_Thm": percent_guaranteed_robust,
-            "Percent_Actually_Robust_Final": percent_actually_robust
+            "N_initial_robust": N_robust,
+            "Percent_Guaranteed_Robust_Filtered": percent_guaranteed_robust_filtered
         })
 
     # Save final results to CSV
     results_df = pd.DataFrame(results)
-    out_path = os.path.join(config.exp.log_dir, "theorem_robustness_analysis.csv")
+    log.info(f"The theorem assumption was satisfied in {np.mean(results_df['Percent_Guaranteed_Robust_Filtered'])}%")
+    out_path = os.path.join(config.exp.log_dir, "theorem_robustness_analysis_filtered.csv")
     results_df.to_csv(out_path, sep=";", index=False)
-    log.info(f"Saved theorem check results to: {out_path}")
+    log.info(f"Saved filtered theorem check results to: {out_path}")
