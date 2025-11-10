@@ -1,9 +1,9 @@
 defaults:
   - _self_
-  - dataset: split_cifar_100
-  - model: wrn
+  - dataset: permuted_mnist
+  - model: mlp
   - method: shield
-  - exp: adversarial_attack
+  - exp: check_theorem_assumptions
 
 fabric:
   _target_: lightning.Fabric
