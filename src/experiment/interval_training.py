@@ -155,14 +155,14 @@ def should_update_best(accuracy: float, best_val_accuracy: float, iteration: int
     """
     return accuracy > best_val_accuracy and iteration >= total_no_iterations // 2
 
-def maybe_step_scheduler(method: MethodABC, iteration: int, total_no_iterations: int, accuracy: float, no_epochs: Optional[int]) -> None:
+def maybe_step_scheduler(method: MethodABC, iteration: int, no_iterations_per_epoch: int, accuracy: float, no_epochs: Optional[int]) -> None:
     """
     Step the learning rate scheduler if applicable.
     """
     if (
         no_epochs is not None
         and method.scheduler is not None
-        and ((iteration + 1) % total_no_iterations == 0)
+        and ((iteration + 1) % no_iterations_per_epoch == 0)
     ):
         log.info("Finishing the current epoch")
         method.make_scheduler_step(accuracy)
@@ -229,7 +229,7 @@ def train_single_task(method: MethodABC, task_id: int, task_datasets: Iterable, 
                 best_val_accuracy = accuracy
                 best_module = make_deepcopy(method, config, device)
 
-            maybe_step_scheduler(method, iteration, total_no_iterations, accuracy, no_epochs)
+            maybe_step_scheduler(method, iteration, no_iterations_per_epoch, accuracy, no_epochs)
 
     return best_module
 
