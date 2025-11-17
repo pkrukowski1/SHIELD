@@ -9,4 +9,4 @@ This module contains scripts for running key experiments and analyses used in th
 - `inc_pert_size_fgsm.py` – Evaluates model robustness under varying perturbation sizes in FGSM attacks.
 - `interval_training.py` – Main script for training models.
 - `plot_interval_mixup_samples.py` – Visualizes interpolated and adversarial samples generated during interval-based training.
-
+- `check_theorem_assumptions.py` – Checks whether the necessary conditions for maintaining robustness across continual learning tasks are satisfied.
