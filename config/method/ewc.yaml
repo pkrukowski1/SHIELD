@@ -1,4 +1,4 @@
-_target_: method.SHIELD
+_target_: method.EWC
 lr: 0.001
 use_lr_scheduler: True
 alpha: 1000

@@ -7,6 +7,7 @@ from copy import deepcopy
 import torch
 
 from hydra.utils import instantiate
+from hydra.errors import InstantiationException
 from omegaconf import DictConfig
 
 from model.model_abc import CLModuleABC
@@ -62,7 +63,10 @@ def make_deepcopy(method: MethodABC, config: DictConfig, device: torch.device) -
     """
     Returns custom deepcopy of the module.
     """
-    best_module = instantiate(config.model, number_of_tasks=config.dataset.number_of_tasks)
+    try:
+        best_module = instantiate(config.model, number_of_tasks=config.dataset.number_of_tasks)
+    except InstantiationException:
+        best_module = instantiate(config.model)
     best_module.load_state_dict(deepcopy(method.module.state_dict()))
     best_module = best_module.to(device)
 

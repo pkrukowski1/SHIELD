@@ -14,7 +14,7 @@ import torch
 from torch.utils.data import TensorDataset, DataLoader
 
 from utils.fabric import setup_fabric
-from utils.handy_functions import write_pickle_file, plot_heatmap, safe_none, make_deepcopy
+from utils.handy_functions import plot_heatmap, safe_none, make_deepcopy
 from method.method_abc import MethodABC
 from model.model_abc import CLModuleABC
 
@@ -38,7 +38,7 @@ def experiment(config: DictConfig) -> None:
     fabric = setup_fabric(config)
 
     log.info(f'Building model')
-    model = fabric.setup(instantiate(config.model, number_of_tasks=number_of_tasks))
+    model = fabric.setup(instantiate(config.model))
 
     log.info(f'Setting up method')
     method = instantiate(config.method, module=model)
@@ -49,10 +49,9 @@ def experiment(config: DictConfig) -> None:
     
     try:
         for task_id in range(number_of_tasks):
-            
 
             method.setup_task(task_id, task_datasets[task_id] if task_id > 0 else None)
-
+            
             best_module = train_single_task(
                 method=method,
                 task_id=task_id,
@@ -188,9 +187,9 @@ def train_single_task(method: MethodABC, task_id: int, task_datasets: Iterable, 
     else:
         no_iterations_per_epoch = None
         total_no_iterations = no_iterations
-
+    
     method.set_no_iterations(total_no_iterations)
-
+    
     best_module = make_deepcopy(method, config, device)
     best_val_accuracy = 0.0
 
