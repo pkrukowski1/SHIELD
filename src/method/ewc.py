@@ -28,6 +28,8 @@ class EWC(MethodABC):
         final_kappa (float): The minimum value for kappa at the end of training.
         criterion (nn.Module): The loss function (CrossEntropyLoss).
         mixup_epsilon_decay_fnc (MixupEpsilonDecayRate): Strategy for decaying epsilon based on mixup lambda.
+        fisher_matrices (dict): Stores Fisher Information Matrices for previous tasks.
+        old_params (torch.Tensor): Stores optimal parameters for previous tasks.
     """
     def __init__(self,
                  module: CLModuleABC,
@@ -70,6 +72,9 @@ class EWC(MethodABC):
 
         self.mixup_epsilon_decay_fnc = MixupEpsilonDecayRate(mixup_epsilon_decay)
         self.final_kappa = final_kappa
+
+        self.fisher_matrices = {}
+        self.old_params = None
 
     def set_no_iterations(self, value: int) -> None:
         """
@@ -132,40 +137,84 @@ class EWC(MethodABC):
                 verbose=True,
             )
 
-    def setup_task(self, task_id: int, task_dataset: Iterable = None) -> None:
+    def setup_task(self, task_id: int, task_dataset=None) -> None:
         """
         Prepares the model for training on a specific task.
 
-        If this is not the first task (task_id > 0), it computes the Fisher Information Matrix 
-        (FIM) for the previous task to establish EWC regularization constraints.
+        If this is not the first task (task_id > 0), it manually computes the 
+        Fisher Information Matrix (FIM) for the PREVIOUS task (task_id - 1).
 
         Args:
-            task_id (int): The identifier of the new task.
-            task_dataset (Iterable, optional): The dataset for the previous task (required 
-                                               to compute Fisher Information).
-        
-        Side Effects:
-            - Resets `current_epsilon` to 0.0 and `current_kappa` to 1.0.
-            - Resets `current_iteration` counter.
-            - Calls `ewc_reg.compute_fisher` if `task_id > 0`.
-            - Re-initializes the optimizer via `setup_optim`.
+            task_id (int): The identifier of the new task about to start.
+            task_dataset (optional): The dataset object for the PREVIOUS task.
+                                     Required to compute Fisher Information.
         """
-
+        
         self.current_epsilon = 0.0
         self.current_kappa = 1.0
         self.current_iteration = 0
 
+        if not hasattr(self, 'fisher_matrices'):
+            self.fisher_matrices = {}
+
         if task_id > 0:
-            ewc_reg.compute_fisher(
-                task_id=task_id,
-                data=task_dataset,
-                params=self.module.parameters(),
-                device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-                mnet=self.module,
-            )
+            if task_dataset is None:
+                raise ValueError("task_dataset (previous task data) is required to compute Fisher Information.")
+            
+            prev_task_id = task_id - 1
+            device = next(self.module.parameters()).device
+            
+            current_fisher = {}
+            current_params = {}
+            
+            for name, param in self.module.named_parameters():
+                if param.requires_grad:
+                    current_fisher[name] = torch.zeros_like(param)
+                    current_params[name] = param.data.clone()
+
+            self.module.eval()
+            
+            batch_size = 32
+            num_samples = task_dataset.num_train_samples
+            num_iterations = int(np.ceil(num_samples / batch_size))
+            
+
+            for _ in range(num_iterations):
+                current_batch = task_dataset.next_train_batch(batch_size)
+
+                batch_x = task_dataset.input_to_torch_tensor(
+                    current_batch[0], device, mode="train"
+                )
+                batch_y = task_dataset.output_to_torch_tensor(
+                    current_batch[1], device, mode="train"
+                )
+                
+                gt_targets = batch_y.max(dim=1)[1]
+
+                self.module.zero_grad()
+                
+                logits, _ = self.module(
+                    x=batch_x, 
+                    epsilon=0.0, 
+                    task_id=prev_task_id
+                )
+                
+                loss = self.criterion(logits, gt_targets)
+                loss.backward()
+                
+                for name, param in self.module.named_parameters():
+                    if param.requires_grad and param.grad is not None:
+                        current_fisher[name] += param.grad.data ** 2
+
+            for name in current_fisher:
+                current_fisher[name] /= num_iterations
+
+            self.fisher_matrices[prev_task_id] = current_fisher
+            self.old_params = current_params
+
+            self.module.train()
 
         self.setup_optim()
-
     
     def forward(self, x: torch.Tensor, y: torch.Tensor, task_id: int) -> Tuple[torch.Tensor,torch.Tensor]:
         """
@@ -216,12 +265,13 @@ class EWC(MethodABC):
 
         loss_regularization = 0.0
         if task_id > 0:
-            loss_regularization = ewc_reg.ewc_regularizer(
-                task_id=task_id,
-                params=self.module.parameters(),
-                mnet=self.module,
-                device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
-            )
+            for prev_task_id in range(task_id):
+                fisher = self.fisher_matrices[prev_task_id]
+                for name, param in self.module.named_parameters():
+                    if param.requires_grad:
+                        fisher_value = fisher[name]
+                        loss_regularization += self.alpha * (fisher_value * (param - self.old_params[name]) ** 2).sum()                
+                
         loss = loss_current_task + self.alpha * loss_regularization / max(1, task_id)
 
         z_eval = torch.where((nn.functional.one_hot(y, prediction.size(-1))).bool(), z_lower, z_upper)
