@@ -1,0 +1,6 @@
+_target_: model.IntervalMLPWithoutHNET
+in_shape: 1024
+no_classes_per_task: 10
+activation_function:
+  _target_: torch.nn.ReLU
+target_hidden_layers: [256, 256]

@@ -1,0 +1,8 @@
+_target_: method.SHIELD
+lr: 0.001
+use_lr_scheduler: True
+alpha: 1000
+mixup_alpha: 0.1
+epsilon: 0.01
+mixup_epsilon_decay: linear # linear, quadratic, log, cos
+final_kappa: 0.5

@@ -1,0 +1,8 @@
+run_func:
+    _target_: experiment.interval_training_wo_hnets
+seed: 1
+log_dir: # set during runtime to automatically created dir
+batch_size: 32
+no_epochs: 200
+no_iterations: null
+save_model_per_task: True

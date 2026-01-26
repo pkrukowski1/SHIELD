@@ -3,3 +3,5 @@ from .hypernet_with_mlp import HyperNetWithMLP
 from .hypernet_with_resnet18 import HyperNetWithResNet18
 from .hypernet_with_vit import HyperNetWithPretrainedViT
 from .hypernet_with_wrn import HyperNetWithWRN
+
+from .mlp_wo_hnet import IntervalMLPWithoutHNET

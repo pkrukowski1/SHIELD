@@ -6,3 +6,4 @@ from .inc_no_iterations_pgd import experiment as inc_no_iterations_pgd
 from .plot_interval_mixup_samples import experiment as plot_interval_mixup_samples
 from .cil_adversarial_attack import experiment as cil_adversarial_attack
 from .check_theorem_assumptions import experiment as check_theorem_assumptions
+from .interval_training_wo_hnets import experiment as interval_training_wo_hnets
