@@ -283,7 +283,7 @@ class SHIELDWithAdvAttacks(MethodABC):
         # z_eval — used only for tracking worst-case predictions
         z_eval = torch.where((nn.functional.one_hot(y, prediction.size(-1))).bool(), z_lower, z_upper)
 
-        if self.enable_adv_training and self.module.training:
+        if self.enable_adv_training and self.module.hnet.training:
             attack_type = self._determine_attack_type(task_id)
 
             if attack_type != AttackType.NONE:
