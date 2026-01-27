@@ -60,7 +60,7 @@ parameters:
 
   # Model
   model._target_:
-    value: model.HyperNetWithAlexNetWithoutHNET
+    value: model.IntervalAlexNetWithoutHNET
   model.in_shape:
     value: [32,32,3]
   model.no_classes_per_task:
