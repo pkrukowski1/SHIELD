@@ -1,0 +1,83 @@
+method: grid
+metric:
+  name: avg_acc
+  goal: maximize
+
+parameters:
+
+  dataset:
+    value: split_cifar_100
+  method:
+    value: ewc
+  model:
+    value: alexnet_wo_hnet
+  exp:
+    value: interval_training_wo_hnets
+
+  # Dataset (fixed)
+  dataset._target_:
+    value: continual_dataset.SplitCIFAR100
+  dataset.number_of_tasks:
+    value: 10
+  dataset.validation_size:
+    value: 500
+  dataset.use_augmentation: 
+    value: False
+  dataset.use_cutout: 
+    value: False
+
+  # Experiment setup
+  exp.seed:
+    value: 42
+  exp.batch_size:
+    values: [32,64]
+  exp.no_epochs:
+    value: 200
+  exp.no_iterations:
+    value: null
+
+  # Fabric setup
+  fabric.accelerator:
+    value: gpu
+
+  # Method (sweep these)
+  method.lr:
+    value: 0.001
+  method.alpha:
+    values: [1000, 3000, 5000, 7000, 10000]
+  method.mixup_alpha:
+    values: [0.01, 0.1, 0.2, 0.3]
+  method.epsilon:
+    values: [0.00784313725, 0.0156862745, 0.005, 0.01]
+  method.use_lr_scheduler:
+    value: True
+  method.mixup_epsilon_decay:
+    value: linear
+  method._target_:
+    value: method.EWC
+  method.final_kappa:
+    value: 0.5
+
+  # Model
+  model._target_:
+    value: model.HyperNetWithAlexNetWithoutHNET
+  model.in_shape:
+    value: [32,32,3]
+  model.no_classes_per_task:
+    value: 10
+  model.activation_function._target_:
+    value: torch.nn.ReLU
+
+  # W&B logging
+  wandb.entity:
+    value: ${oc.env:WANDB_ENTITY}
+  wandb.project:
+    value: ${oc.env:WANDB_PROJECT}
+
+command:
+  - ${env}
+  - python
+  - src/main.py
+  - --config-name
+  - shield.yaml
+  - ${args_no_hyphens}
