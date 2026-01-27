@@ -37,7 +37,7 @@ class SHIELDWithAdvAttacks(MethodABC):
         use_lr_scheduler (bool): Whether to use a learning rate scheduler.
         beta (float): Hyperparameter scaling the regularization strength for previous tasks.
         mixup_alpha (float): Alpha parameter for the Beta distribution in MixUp.
-        number_of_tasks (int): The total number of tasks in the continuum.
+        number_of_tasks (int): The total number of tasks in the continuum. Defaults to 3.
         mixup_epsilon_decay (str, optional): Strategy to decay epsilon during MixUp. Defaults to "linear".
         final_kappa (float, optional): The final weighting term for the fit loss. Defaults to 0.5.
         scenario (str, optional): The name of the attack curriculum (e.g., 'pgd_fgsm_none').
@@ -59,7 +59,7 @@ class SHIELDWithAdvAttacks(MethodABC):
                  use_lr_scheduler: bool,
                  beta: float,
                  mixup_alpha: float,
-                 number_of_tasks: int,
+                 number_of_tasks: int = 3,
                  mixup_epsilon_decay: str = "linear",
                  final_kappa: float = 0.5,
                  scenario: str = "pgd_fgsm_none",
@@ -69,6 +69,9 @@ class SHIELDWithAdvAttacks(MethodABC):
                  ):
         
         super().__init__(module=module, lr=lr, use_lr_scheduler=use_lr_scheduler)
+
+        assert number_of_tasks >= 3, "This SHIELD with adversarial attacks implementation requires 3 tasks right now \
+            to match AIR's scenario."
 
         self.beta = beta
         self.mixup_alpha = mixup_alpha
