@@ -1,13 +1,12 @@
 import torch
 from torch import nn
-import hypnettorch.utils.ewc_regularizer as ewc_reg
 
 from method.method_abc import MethodABC
 from method.utils import mixup_data
 from model.model_abc import CLModuleABC
 from method.interval_mixup_decay_rate import MixupEpsilonDecayRate
 
-from typing import Tuple, Iterable
+from typing import Tuple
 import numpy as np
 
 class EWC(MethodABC):
