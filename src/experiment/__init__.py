@@ -7,3 +7,4 @@ from .plot_interval_mixup_samples import experiment as plot_interval_mixup_sampl
 from .cil_adversarial_attack import experiment as cil_adversarial_attack
 from .check_theorem_assumptions import experiment as check_theorem_assumptions
 from .interval_training_wo_hnets import experiment as interval_training_wo_hnets
+from .air_scenario_adversarial_training import experiment as air_scenario_adversarial_training

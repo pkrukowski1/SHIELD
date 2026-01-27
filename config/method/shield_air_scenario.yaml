@@ -1,0 +1,13 @@
+_target_: method.SHIELDWithAdvAttacks
+lr: 0.001
+use_lr_scheduler: True
+beta: 0.01
+mixup_alpha: 0.1
+epsilon: 0.01
+mixup_epsilon_decay: linear # linear, quadratic, log, cos
+final_kappa: 0.5
+scenario: pgd_fgsm_none
+pgd_steps: 10
+pgd_alpha: 0.00784313725
+adv_epsilon: 0.03137254901
+number_of_tasks: 3 # It should be fixed

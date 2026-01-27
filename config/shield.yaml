@@ -1,9 +1,9 @@
 defaults:
   - _self_
   - dataset: split_cifar_100
-  - model: alexnet_wo_hnet
-  - method: ewc
-  - exp: interval_training_wo_hnets
+  - model: wrn
+  - method: shield_air_scenario
+  - exp: air_scenario_adversarial_training
 
 fabric:
   _target_: lightning.Fabric
