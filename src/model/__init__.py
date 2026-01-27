@@ -5,3 +5,4 @@ from .hypernet_with_vit import HyperNetWithPretrainedViT
 from .hypernet_with_wrn import HyperNetWithWRN
 
 from .mlp_wo_hnet import IntervalMLPWithoutHNET
+from .alexnet_wo_hnet import IntervalAlexNetWithoutHNET

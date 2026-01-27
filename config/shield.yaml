@@ -1,7 +1,7 @@
 defaults:
   - _self_
-  - dataset: permuted_mnist
-  - model: mlp_wo_hnet
+  - dataset: split_cifar_100
+  - model: alexnet_wo_hnet
   - method: ewc
   - exp: interval_training_wo_hnets
 
