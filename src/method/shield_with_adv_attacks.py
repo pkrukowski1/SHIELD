@@ -141,6 +141,7 @@ class SHIELDWithAdvAttacks(MethodABC):
         self.current_epsilon = 0.0
         self.current_kappa = 1.0
         self.current_iteration = 0
+        self.enable_adv_training = False
 
     def _determine_attack_type(self, task_id: int) -> AttackType:
         """
@@ -296,7 +297,7 @@ class SHIELDWithAdvAttacks(MethodABC):
                 )
 
                 adv_loss_fit = self.mixup_criterion(self.criterion, adv_prediction, y_a, y_b, lam)
-                loss += self.current_kappa * adv_loss_fit
+                loss = loss + self.current_kappa * adv_loss_fit
 
         return loss, z_eval
             
