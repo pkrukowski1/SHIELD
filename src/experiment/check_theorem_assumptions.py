@@ -2,16 +2,16 @@ import os
 import torch
 import logging
 import pandas as pd
-from omegaconf import DictConfig
-from hydra.utils import instantiate
-from tqdm import tqdm
-import torch.nn.utils as nn_utils
-from typing import Tuple
 import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 from utils.fabric import setup_fabric
 from utils.handy_functions import prepare_weights
-from model.model_abc import CLModuleABC
+from omegaconf import DictConfig
+from hydra.utils import instantiate
+from tqdm import tqdm
+from typing import Tuple
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
@@ -138,7 +138,7 @@ def experiment(config: DictConfig) -> None:
     
     log.info("Loading all hypernetwork weights")
     all_hnet_weights = []
-    # ... (loading weights remains the same) ...
+
     for i in range(number_of_tasks):
         try:
             weights_path = f"{path_to_weights}/hnet_after_{i+1}_task.pt"
@@ -159,20 +159,15 @@ def experiment(config: DictConfig) -> None:
     t_final = number_of_tasks - 1
     weights_final = all_hnet_weights[t_final]
     
-    log.info(f"--- Checking Theorem Against Final Task t={t_final} ---")
+    log.info(f"--- Checking Theorem Against Final Task t={number_of_tasks} ---")
 
-    for s in range(t_final):
+    all_data = {}
+
+    for s in range(number_of_tasks):
         log.info(f"Checking condition for previous task s={s}. Filtering out initially non-robust samples...")
         
         weights_initial = all_hnet_weights[s]
-        
-        # --- 1. Compute all necessary per-sample vectors ---
-        # NOTE: M_mean_final is still calculated on the full dataset, 
-        # but is less relevant once we filter.
-        _, margins_final = compute_margins(
-            model, task_datasets[s], s, weights_final, epsilon, fabric
-        )
-        
+
         # Get mean margin AND per-sample margins at time s (initial)
         _, margins_initial = compute_margins(
             model, task_datasets[s], s, weights_initial, epsilon, fabric
@@ -182,8 +177,6 @@ def experiment(config: DictConfig) -> None:
         _, deltas_per_sample = compute_deltas(
             model, task_datasets[s], s, weights_initial, weights_final, fabric, config
         )
-
-        # --- 2. Filter for Initially Robust Samples ---
         
         # Create a boolean mask: True for samples where margin_initial > 0
         is_initially_robust = margins_initial > 0.0
@@ -197,19 +190,20 @@ def experiment(config: DictConfig) -> None:
             continue
             
         # Apply the mask to all relevant vectors
-        margins_final_filtered = margins_final[is_initially_robust]
         deltas_per_sample_filtered = deltas_per_sample[is_initially_robust]
-
-        # --- 3. Recalculate Metrics using the filtered subset ---
         
         # The core logic: M_new >= M_old - 2*Delta, applied only to robust subset
-        guaranteed_new_margins_filtered = margins_final_filtered - (2.0 * deltas_per_sample_filtered)
-        
-        num_guaranteed_robust_filtered = (guaranteed_new_margins_filtered > 0).sum().item()
+        margins_initial_filtered = margins_initial[is_initially_robust]
+
+        theorem_condition = deltas_per_sample_filtered <= 0.5 * margins_initial_filtered
+        num_guaranteed_robust_filtered = theorem_condition.sum().item()
         percent_guaranteed_robust_filtered = 100.0 * num_guaranteed_robust_filtered / N_robust
         
-        
-        # --- 4. Log results ---
+        all_data[s] = {
+            "delta": deltas_per_sample_filtered.cpu().numpy(),
+            "margin": margins_initial_filtered.cpu().numpy()
+        }
+
         log.info(f"--- Results for s={s} (Filtered N={N_robust} / {N_full}) ---")
         log.info(f"[Initial State] Robustness: {100.0 * N_robust / N_full:.2f}%")
         
@@ -219,12 +213,51 @@ def experiment(config: DictConfig) -> None:
             "s_previous_task": s,
             "t_final_task": t_final,
             "N_initial_robust": N_robust,
-            "Percent_Guaranteed_Robust_Filtered": percent_guaranteed_robust_filtered
+            "percent_guaranteed_robust_filtered": percent_guaranteed_robust_filtered,
+            "deltas_per_sample_filtered": deltas_per_sample_filtered.mean().item(),
+            "margins_initial_filtered": margins_initial_filtered.mean().item()
+
         })
+
+    plt.figure(figsize=(7,5))
+    sns.set_style("whitegrid")
+
+    max_ratio_to_show = 1.1
+
+    for s, data in all_data.items():
+        delta_vals = data["delta"]
+        margin_vals = data["margin"]
+
+        ratio_full = delta_vals / (0.5 * margin_vals + 1e-12)
+        ratio = ratio_full[ratio_full <= max_ratio_to_show]
+
+        sns.kdeplot(
+            ratio,
+            linewidth=2,
+            bw_adjust=1.2,
+            cut=0,
+            clip=(0, max_ratio_to_show),
+            label=f"Task {s+1}"
+        )
+
+    plt.axvline(1.0, color="red", linestyle="--", linewidth=2)
+
+    plt.xlim(0, max_ratio_to_show)
+    plt.xlabel(r"$\Delta / (0.5 M)$", fontsize=14)
+    plt.xticks(fontsize=12)
+    
+    plt.ylabel("KDE Density", fontsize=14)
+    plt.yticks(fontsize=12)
+
+    plt.legend(ncol=2, fontsize=12, frameon=False)
+    plt.tight_layout()
+
+    plt.savefig(os.path.join(config.exp.log_dir, "theorem_assumption_visualization.png"), dpi=300)
+    plt.close()
 
     # Save final results to CSV
     results_df = pd.DataFrame(results)
-    log.info(f"The theorem assumption was satisfied in {np.mean(results_df['Percent_Guaranteed_Robust_Filtered'])}%")
+    log.info(f"The theorem assumption was satisfied in {np.mean(results_df['percent_guaranteed_robust_filtered'])}%")
     out_path = os.path.join(config.exp.log_dir, "theorem_robustness_analysis_filtered.csv")
     results_df.to_csv(out_path, sep=";", index=False)
     log.info(f"Saved filtered theorem check results to: {out_path}")
