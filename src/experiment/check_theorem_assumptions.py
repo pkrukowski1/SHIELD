@@ -222,38 +222,47 @@ def experiment(config: DictConfig) -> None:
     plt.figure(figsize=(7,5))
     sns.set_style("whitegrid")
 
-    max_ratio_to_show = 1.1
+    eps = 1e-6
+    max_ratio_to_show = 1.0
 
     for s, data in all_data.items():
         delta_vals = data["delta"]
         margin_vals = data["margin"]
 
-        ratio_full = delta_vals / (0.5 * margin_vals + 1e-12)
-        ratio = ratio_full[ratio_full <= max_ratio_to_show]
+        ratio = delta_vals / (0.5 * margin_vals + 1e-12)
+        ratio = np.clip(ratio, eps, max_ratio_to_show)
 
-        sns.kdeplot(
-            ratio,
+        sorted_ratio = np.sort(ratio)
+        cdf = np.arange(1, len(sorted_ratio)+1) / len(sorted_ratio)
+
+        plt.plot(
+            sorted_ratio,
+            cdf,
             linewidth=2,
-            bw_adjust=1.2,
-            cut=0,
-            clip=(0, max_ratio_to_show),
             label=f"Task {s+1}"
         )
 
+    # Theoretical threshold
     plt.axvline(1.0, color="red", linestyle="--", linewidth=2)
 
-    plt.xlim(0, max_ratio_to_show)
-    plt.xlabel(r"$\Delta / (0.5 M)$", fontsize=14)
+    # Log scale for readability
+    plt.xscale("log")
+
+    plt.xlim(eps, max_ratio_to_show)
+    plt.ylim(0, 1)
+
+    plt.xlabel(r"$\Delta / (0.5 M)$ (log scale)", fontsize=14)
+    plt.ylabel("Cumulative Fraction", fontsize=14)
+
     plt.xticks(fontsize=12)
-    
-    plt.ylabel("KDE Density", fontsize=14)
     plt.yticks(fontsize=12)
 
-    plt.legend(ncol=2, fontsize=12, frameon=False)
-    plt.tight_layout()
+    plt.legend(ncol=2, fontsize=10, frameon=False)
 
-    plt.savefig(os.path.join(config.exp.log_dir, "theorem_assumption_visualization.png"), dpi=300)
+    plt.tight_layout()
+    plt.savefig(os.path.join(config.exp.log_dir, "theorem_assumption_cdf_log.png"), dpi=300)
     plt.close()
+
 
     # Save final results to CSV
     results_df = pd.DataFrame(results)
