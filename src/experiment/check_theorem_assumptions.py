@@ -222,10 +222,12 @@ def experiment(config: DictConfig) -> None:
     plt.figure(figsize=(7,5))
     sns.set_style("whitegrid")
 
-    eps = 1e-6
-    max_ratio_to_show = 1.0
+    eps = 1e-2
+    max_ratio_to_show = 1.5
 
     for s, data in all_data.items():
+        if s == len(all_data) - 1:
+            break
         delta_vals = data["delta"]
         margin_vals = data["margin"]
 
@@ -257,7 +259,8 @@ def experiment(config: DictConfig) -> None:
     plt.xticks(fontsize=12)
     plt.yticks(fontsize=12)
 
-    plt.legend(ncol=2, fontsize=10, frameon=False)
+    plt.legend(ncol=2, fontsize=10, frameon=False, loc="upper left")
+    plt.title(f"{config.dataset.__target__.split('.')[-1]}", fontsize=16)
 
     plt.tight_layout()
     plt.savefig(os.path.join(config.exp.log_dir, "theorem_assumption_cdf_log.png"), dpi=300)
