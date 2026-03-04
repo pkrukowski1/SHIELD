@@ -222,50 +222,46 @@ def experiment(config: DictConfig) -> None:
     plt.figure(figsize=(7,5))
     sns.set_style("whitegrid")
 
-    eps = 1e-2
-    max_ratio_to_show = 1.5
+    max_ratio_to_show = 1.0
+    min_ratio = 1e-6
+
+    bins = np.logspace(np.log10(min_ratio), np.log10(max_ratio_to_show), 40)
 
     for s, data in all_data.items():
         if s == len(all_data) - 1:
             break
+
         delta_vals = data["delta"]
         margin_vals = data["margin"]
 
         ratio = delta_vals / (0.5 * margin_vals + 1e-12)
-        ratio = np.clip(ratio, eps, max_ratio_to_show)
 
-        sorted_ratio = np.sort(ratio)
-        cdf = np.arange(1, len(sorted_ratio)+1) / len(sorted_ratio)
+        ratio = ratio[(ratio >= min_ratio) & (ratio <= max_ratio_to_show)]
 
-        plt.plot(
-            sorted_ratio,
-            cdf,
-            linewidth=2,
+        plt.hist(
+            ratio,
+            bins=bins,
+            density=True,
+            alpha=0.35,
             label=f"Task {s+1}"
         )
 
-    # Theoretical threshold
     plt.axvline(1.0, color="red", linestyle="--", linewidth=2)
 
-    # Log scale for readability
     plt.xscale("log")
 
-    plt.xlim(eps, max_ratio_to_show)
-    plt.ylim(0, 1)
-
-    plt.xlabel(r"$\Delta / (0.5 M)$ (log scale)", fontsize=14)
-    plt.ylabel("Cumulative Fraction", fontsize=14)
+    plt.xlabel(r"$\Delta/(0.5M)$ (log scale)", fontsize=14)
+    plt.ylabel("Density", fontsize=14)
 
     plt.xticks(fontsize=12)
     plt.yticks(fontsize=12)
 
     plt.legend(ncol=2, fontsize=10, frameon=False, loc="upper left")
-    plt.title(f"{config.dataset.__target__.split('.')[-1]}", fontsize=16)
+    plt.title(f"{config.dataset._target_.split('.')[-1]}", fontsize=16)
 
     plt.tight_layout()
-    plt.savefig(os.path.join(config.exp.log_dir, "theorem_assumption_cdf_log.png"), dpi=300)
+    plt.savefig(os.path.join(config.exp.log_dir, "theorem_assumption_hist_log.png"), dpi=300)
     plt.close()
-
 
     # Save final results to CSV
     results_df = pd.DataFrame(results)
