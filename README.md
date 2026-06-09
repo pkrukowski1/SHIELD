@@ -209,14 +209,12 @@ This project is licensed under the MIT License. See [LICENSE](./LICENSE) for mor
 If you use this work in your research, please cite:
 
 ```bibtex
-@misc{krukowski2025shieldsecurehypernetworksincremental,
-      title={SHIELD: Secure Hypernetworks for Incremental Expansion Learning Defense}, 
-      author={Patryk Krukowski and Łukasz Gorczyca and Piotr Helm and Kamil Książek and Przemysław Spurek},
-      year={2025},
-      eprint={2506.08255},
-      archivePrefix={arXiv},
-      primaryClass={cs.LG},
-      url={https://arxiv.org/abs/2506.08255}, 
+@inproceedings{krukowski2026shield,
+  title={SHIELD: Secure Hypernetworks for Incremental Expansion Learning Defense},
+  author={Krukowski, Patryk and Gorczyca, Lukasz and Helm, Piotr and Ksiazek, Kamil and Spurek, Przemyslaw},
+  booktitle={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition},
+  pages={2377--2386},
+  year={2026}
 }
 ```
 
